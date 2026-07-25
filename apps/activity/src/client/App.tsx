@@ -1,4 +1,5 @@
 import { DEFAULT_CONTENT } from "@discord-hero/content";
+import { KENNEY_UI_ASSET_IDS, type AssetCatalog, type KenneyUiAssetId } from "@discord-hero/assets";
 import { HERO_CLASS_IDS, type EquipmentSlot } from "@discord-hero/game-core";
 import type {
   AccountProgress,
@@ -13,6 +14,8 @@ import type {
 } from "@discord-hero/protocol";
 import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState, type JSX } from "react";
 import { RoomSocket } from "./network/RoomSocket.js";
+import { loadAssetCatalog } from "./assets/AssetCatalog.js";
+import { PixelAsset } from "./assets/PixelAsset.js";
 import { createPlatformBridge, type PlatformBridge } from "./platform/index.js";
 import { appReducer, INITIAL_APP_STATE } from "./state/app-state.js";
 
@@ -91,6 +94,23 @@ const RESCUE_OPTIONS: readonly { id: RescuePolicyDto; label: string; detail: str
   { id: "off", label: "手動のみ", detail: "自動救助を止め、必要な時だけ指示します。" },
 ];
 
+const UI_ASSET_VARIABLES: readonly {
+  readonly cssVariable: string;
+  readonly assetId: KenneyUiAssetId;
+}[] = [
+  { cssVariable: "--asset-tile-gold", assetId: KENNEY_UI_ASSET_IDS.tile0000 },
+  { cssVariable: "--asset-tile-copper", assetId: KENNEY_UI_ASSET_IDS.tile0001 },
+  { cssVariable: "--asset-tile-blue", assetId: KENNEY_UI_ASSET_IDS.tile0002 },
+  { cssVariable: "--asset-tile-slate", assetId: KENNEY_UI_ASSET_IDS.tile0003 },
+  { cssVariable: "--asset-frame-blue", assetId: KENNEY_UI_ASSET_IDS.tile0004 },
+  { cssVariable: "--asset-frame-copper", assetId: KENNEY_UI_ASSET_IDS.tile0005 },
+  { cssVariable: "--asset-frame-ivory", assetId: KENNEY_UI_ASSET_IDS.tile0006 },
+  { cssVariable: "--asset-frame-ivory-inner", assetId: KENNEY_UI_ASSET_IDS.tile0007 },
+  { cssVariable: "--asset-frame-dark", assetId: KENNEY_UI_ASSET_IDS.tile0008 },
+  { cssVariable: "--asset-frame-light", assetId: KENNEY_UI_ASSET_IDS.tile0009 },
+  { cssVariable: "--asset-tilemap-small", assetId: KENNEY_UI_ASSET_IDS.tilemapSmall },
+];
+
 interface SettingsDraft {
   classId: HeroClassIdDto;
   activeSkillIds: string[];
@@ -105,10 +125,40 @@ interface SettingsDraft {
 
 export function App(): JSX.Element {
   const [state, dispatch] = useReducer(appReducer, INITIAL_APP_STATE);
+  const [assetCatalog, setAssetCatalog] = useState<AssetCatalog | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<SettingsDraft | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const socketRef = useRef<RoomSocket | null>(null);
   const platformRef = useRef<PlatformBridge | null>(null);
+
+  useEffect(() => {
+    let disposed = false;
+    void loadAssetCatalog().then((catalog) => {
+      if (!disposed) {
+        setAssetCatalog(catalog);
+      }
+    });
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    for (const { cssVariable, assetId } of UI_ASSET_VARIABLES) {
+      const asset = assetCatalog?.assets[assetId];
+      if (asset?.kind === "image") {
+        root.style.setProperty(cssVariable, `url("${asset.url}")`);
+      } else {
+        root.style.removeProperty(cssVariable);
+      }
+    }
+    return () => {
+      for (const { cssVariable } of UI_ASSET_VARIABLES) {
+        root.style.removeProperty(cssVariable);
+      }
+    };
+  }, [assetCatalog]);
 
   useEffect(() => {
     let disposed = false;
@@ -211,6 +261,7 @@ export function App(): JSX.Element {
   if (state.snapshot === null) {
     view = (
       <ConnectionView
+        assetCatalog={assetCatalog}
         roomId={state.session?.roomId ?? null}
         status={state.connectionStatus}
         onRetry={() => {
@@ -221,6 +272,7 @@ export function App(): JSX.Element {
   } else if (settingsOpen && status === "lobby" && settingsDraft !== null) {
     view = (
       <SettingsView
+        assetCatalog={assetCatalog}
         draft={settingsDraft}
         onChange={setSettingsDraft}
         onCancel={() => {
@@ -233,6 +285,7 @@ export function App(): JSX.Element {
   } else if (status === "lobby") {
     view = (
       <LobbyView
+        assetCatalog={assetCatalog}
         snapshot={state.snapshot}
         currentPlayer={currentPlayer}
         accountProgress={state.accountProgress}
@@ -245,6 +298,7 @@ export function App(): JSX.Element {
   } else if (status === "running") {
     view = (
       <BattleView
+        assetCatalog={assetCatalog}
         snapshot={state.snapshot}
         currentPlayer={currentPlayer}
         currentPlayerId={state.playerId}
@@ -262,6 +316,7 @@ export function App(): JSX.Element {
   } else {
     view = (
       <ResultView
+        assetCatalog={assetCatalog}
         snapshot={state.snapshot}
         currentPlayerId={state.playerId}
         onRetry={() => socketRef.current?.restartMatch()}
@@ -273,9 +328,15 @@ export function App(): JSX.Element {
   return (
     <main className="app-shell">
       <header className="top-bar">
-        <div>
-          <p className="eyebrow">Discord Activity / Cooperative Roguelite</p>
-          <h1>Discord Hero</h1>
+        <div className="brand-lockup">
+          <span className="brand-crest" aria-hidden="true">
+            <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0004} />
+            <span className="brand-glyph">✦</span>
+          </span>
+          <div>
+            <p className="eyebrow">Discord Activity / Cooperative Roguelite</p>
+            <h1>Discord Hero</h1>
+          </div>
         </div>
         <div className="connection-cluster">
           <span className={`status-dot status-${state.connectionStatus}`} aria-hidden="true" />
@@ -304,16 +365,23 @@ export function App(): JSX.Element {
 }
 
 interface ConnectionViewProps {
+  readonly assetCatalog: AssetCatalog | null;
   readonly roomId: string | null;
   readonly status: typeof INITIAL_APP_STATE.connectionStatus;
   readonly onRetry: () => void;
 }
 
-function ConnectionView({ roomId, status, onRetry }: ConnectionViewProps): JSX.Element {
+function ConnectionView({
+  assetCatalog,
+  roomId,
+  status,
+  onRetry,
+}: ConnectionViewProps): JSX.Element {
   return (
     <section className="connection-screen panel">
       <div className="connection-emblem" aria-hidden="true">
-        ✦
+        <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0004} />
+        <span>✦</span>
       </div>
       <p className="eyebrow">ROOM LINK</p>
       <h2>遠征ルームへ接続中</h2>
@@ -336,6 +404,7 @@ function ConnectionView({ roomId, status, onRetry }: ConnectionViewProps): JSX.E
 }
 
 interface LobbyViewProps {
+  readonly assetCatalog: AssetCatalog | null;
   readonly snapshot: GameSnapshot;
   readonly currentPlayer: PlayerSnapshot | null;
   readonly accountProgress: AccountProgress | null;
@@ -346,6 +415,7 @@ interface LobbyViewProps {
 }
 
 function LobbyView({
+  assetCatalog,
   snapshot,
   currentPlayer,
   accountProgress,
@@ -366,7 +436,8 @@ function LobbyView({
           <p className="muted">NORMAL · 15〜25分 · 自動戦闘</p>
         </div>
         <div className="expedition-mark" aria-label="遠征エリア">
-          01
+          <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0005} />
+          <span>01</span>
         </div>
       </section>
 
@@ -382,7 +453,8 @@ function LobbyView({
             {players.map((player) => (
               <article className="party-member lobby-member" key={player.id}>
                 <div className="avatar-chip" aria-hidden="true">
-                  {player.displayName.slice(0, 1)}
+                  <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0002} />
+                  <span>{player.displayName.slice(0, 1)}</span>
                 </div>
                 <div className="party-member-main">
                   <strong>{player.displayName}</strong>
@@ -415,7 +487,8 @@ function LobbyView({
             <>
               <div className="build-summary">
                 <span className="build-icon" aria-hidden="true">
-                  ◆
+                  <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0000} />
+                  <span>◆</span>
                 </span>
                 <div>
                   <strong>{CLASS_LABELS[currentPlayer.classId]}</strong>
@@ -550,13 +623,20 @@ function AccountProgressCard({
 }
 
 interface SettingsViewProps {
+  readonly assetCatalog: AssetCatalog | null;
   readonly draft: SettingsDraft;
   readonly onChange: (draft: SettingsDraft) => void;
   readonly onCancel: () => void;
   readonly onSave: () => void;
 }
 
-function SettingsView({ draft, onChange, onCancel, onSave }: SettingsViewProps): JSX.Element {
+function SettingsView({
+  assetCatalog,
+  draft,
+  onChange,
+  onCancel,
+  onSave,
+}: SettingsViewProps): JSX.Element {
   const availableSkillIds = DEFAULT_CONTENT.classes[draft.classId].skillIds;
   return (
     <section className="settings-screen panel">
@@ -567,7 +647,8 @@ function SettingsView({ draft, onChange, onCancel, onSave }: SettingsViewProps):
           <p className="muted">変更は次の遠征から適用されます。完成済みプリセットは使いません。</p>
         </div>
         <span className="settings-gem" aria-hidden="true">
-          ✦
+          <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0004} />
+          <span>✦</span>
         </span>
       </div>
 
@@ -813,6 +894,7 @@ function PolicyGroup<T extends string>({
 }
 
 interface BattleViewProps {
+  readonly assetCatalog: AssetCatalog | null;
   readonly snapshot: GameSnapshot;
   readonly currentPlayer: PlayerSnapshot | null;
   readonly currentPlayerId: string | null;
@@ -823,6 +905,7 @@ interface BattleViewProps {
 }
 
 function BattleView({
+  assetCatalog,
   snapshot,
   currentPlayer,
   currentPlayerId,
@@ -887,7 +970,10 @@ function BattleView({
       <section className="battle-intervention panel">
         <div className="battle-player-strip">
           <div className="battle-hero-icon" aria-hidden="true">
-            {currentPlayer === null ? "?" : CLASS_LABELS[currentPlayer.classId].slice(0, 1)}
+            <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0002} />
+            <span>
+              {currentPlayer === null ? "?" : CLASS_LABELS[currentPlayer.classId].slice(0, 1)}
+            </span>
           </div>
           <div className="battle-hero-info">
             <strong>{currentPlayer?.displayName ?? "Hero"}</strong>
@@ -967,7 +1053,10 @@ function BattleView({
           <div className="compact-party-list">
             {Object.values(snapshot.players).map((player) => (
               <div className="compact-party-row" key={player.id}>
-                <span className="compact-avatar">{player.displayName.slice(0, 1)}</span>
+                <span className="compact-avatar">
+                  <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0003} />
+                  <span>{player.displayName.slice(0, 1)}</span>
+                </span>
                 <span>
                   <strong>{player.displayName}</strong>
                   <small>{CLASS_LABELS[player.classId]}</small>
@@ -1091,13 +1180,20 @@ function DecisionPrompt({
 }
 
 interface ResultViewProps {
+  readonly assetCatalog: AssetCatalog | null;
   readonly snapshot: GameSnapshot;
   readonly currentPlayerId: string | null;
   readonly onRetry: () => void;
   readonly onLobby: () => void;
 }
 
-function ResultView({ snapshot, currentPlayerId, onRetry, onLobby }: ResultViewProps): JSX.Element {
+function ResultView({
+  assetCatalog,
+  snapshot,
+  currentPlayerId,
+  onRetry,
+  onLobby,
+}: ResultViewProps): JSX.Element {
   const victory = snapshot.status === "victory";
   const returned = snapshot.status === "return";
   const reward =
@@ -1120,7 +1216,8 @@ function ResultView({ snapshot, currentPlayerId, onRetry, onLobby }: ResultViewP
         }
         aria-hidden="true"
       >
-        {victory ? "★" : returned ? "↩" : "×"}
+        <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0005} />
+        <span className="result-glyph">{victory ? "★" : returned ? "↩" : "×"}</span>
       </div>
       <p className="eyebrow">EXPEDITION REPORT</p>
       <h2>{victory ? "遠征成功" : returned ? "安全に帰還" : "遠征失敗"}</h2>

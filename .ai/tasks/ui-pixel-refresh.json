@@ -1,0 +1,35 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "ui-pixel-refresh",
+  "title": "ピクセルアートUIの刷新とアセット利用の整理",
+  "objective": "既存のDiscord Activity UIを、明るいピクセルアートゲームのロビー・ビルド・戦闘・結果画面として再構成し、Kenney UIアセットを用途別に複数組み合わせる。アセットカタログからの読み込みを共通化し、ゲームルール・通信・依存方向を変更せずに画面層を整理する。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "ロビー、設定、戦闘、結果の各状態が明るいピクセルアートの情報階層を持ち、ボタン・パネル・警告・報酬に異なるUIタイルを使い分ける",
+      "verification": "npm run build --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-2",
+      "description": "UIアセットのURLは検証済みアセットカタログから取得し、ハッシュ済み出力名をクライアントへハードコードしない。カタログ不在時は既存の色とフォールバック描画で起動できる",
+      "verification": "npm run typecheck --workspace @discord-hero/activity && npm run assets:validate"
+    },
+    {
+      "id": "AC-3",
+      "description": "ゲームコア、プロトコル、サーバー権威型のルールとメッセージ形状を変更しない",
+      "verification": "npm run check:architecture && npm run check:no-any"
+    },
+    {
+      "id": "AC-4",
+      "description": "変更範囲がタスク契約の許可パス内に収まり、フォーマット・lint・型検査・テスト・ビルドが通る",
+      "verification": "npm run agent:verify -- .ai/tasks/ui-pixel-refresh.json"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": ["apps/**", "packages/**", "assets/**", "docs/**", "scripts/**", ".ai/**"],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "必要に応じて変更理由、互換性、運用上の注意を記載する。"
+}

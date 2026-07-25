@@ -12,6 +12,10 @@ export const KENNEY_UI_ASSET_IDS = {
   tile0003: "kenney.ui.tile-0003",
   tile0004: "kenney.ui.tile-0004",
   tile0005: "kenney.ui.tile-0005",
+  tile0006: "kenney.ui.tile-0006",
+  tile0007: "kenney.ui.tile-0007",
+  tile0008: "kenney.ui.tile-0008",
+  tile0009: "kenney.ui.tile-0009",
 } as const;
 
 export type GameVisualAssetId = (typeof GAME_VISUAL_ASSET_IDS)[keyof typeof GAME_VISUAL_ASSET_IDS];

@@ -1,12 +1,6 @@
-import {
-  createEmptyAssetCatalog,
-  parseAssetCatalog,
-  type AssetCatalog,
-  type SpriteSheetRuntimeAsset,
-} from "@discord-hero/assets";
+import { type AssetCatalog, type SpriteSheetRuntimeAsset } from "@discord-hero/assets";
 import { AnimatedSprite, Assets, Rectangle, Texture } from "pixi.js";
-
-const CATALOG_URL = "/assets/generated/asset-catalog.json";
+import { loadAssetCatalog } from "./AssetCatalog.js";
 
 export class GameAssetLibrary {
   readonly #catalog: AssetCatalog;
@@ -96,14 +90,5 @@ function createFrames(texture: Texture, asset: SpriteSheetRuntimeAsset): readonl
 }
 
 async function loadCatalog(): Promise<AssetCatalog> {
-  try {
-    const response = await fetch(CATALOG_URL, { cache: "no-store" });
-    if (!response.ok) {
-      return createEmptyAssetCatalog(import.meta.env.PROD ? "production" : "local");
-    }
-    return parseAssetCatalog(await response.json());
-  } catch (error: unknown) {
-    console.warn("Asset catalog could not be loaded; using fallback rendering", error);
-    return createEmptyAssetCatalog(import.meta.env.PROD ? "production" : "local");
-  }
+  return loadAssetCatalog();
 }

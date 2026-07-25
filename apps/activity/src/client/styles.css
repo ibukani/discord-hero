@@ -4,25 +4,25 @@
   --font-pixel-heading: "Press Start 2P", "Silkscreen", "DotGothic16", monospace;
   --font-pixel-body: "DotGothic16", "Silkscreen", ui-monospace, monospace;
 
-  --color-bg-dark: #0d121d;
-  --color-panel-bg: #141c2c;
-  --color-panel-inset: #0a0e17;
-  --color-border-outer: #2d3b54;
-  --color-border-highlight: #4f6385;
-  --color-border-dark: #080c14;
+  --color-bg-dark: #273649;
+  --color-panel-bg: #33485d;
+  --color-panel-inset: #1d2c40;
+  --color-border-outer: #536b80;
+  --color-border-highlight: #86a8bb;
+  --color-border-dark: #132034;
 
   --color-gold: #ffcf40;
   --color-gold-shadow: #b38600;
-  --color-text-main: #e6eef8;
-  --color-text-muted: #8ba2c0;
+  --color-text-main: #fff8e7;
+  --color-text-muted: #c2d2df;
 
   --color-btn-green: #2e8b57;
   --color-btn-green-top: #42b876;
   --color-btn-green-border: #1e5a38;
 
-  --color-btn-blue: #2968a3;
-  --color-btn-blue-top: #3d8ed9;
-  --color-btn-blue-border: #1b456e;
+  --color-btn-blue: #477fae;
+  --color-btn-blue-top: #8dc2d5;
+  --color-btn-blue-border: #285376;
 
   --color-danger: #d94352;
 
@@ -251,159 +251,732 @@
   }
 }
 
-* {
-  box-sizing: border-box;
+/* Pixel-adventure visual system                                              */
+/*                                                                            */
+/* The catalog supplies these surfaces at runtime. Each role intentionally    */
+/* uses a different tile from the pack so the lobby, choices, alerts, and     */
+/* rewards read as different game objects instead of one generic web card.    */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  --color-bg-dark: #273649;
+  --color-panel-bg: #3b5267;
+  --color-panel-inset: #203247;
+  --color-border-outer: #58748a;
+  --color-border-highlight: #9dc1ce;
+  --color-border-dark: #132034;
+  --color-text-main: #fff8e7;
+  --color-text-muted: #c7d7df;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at 50% 10%, rgba(45, 65, 100, 0.35), transparent 60%),
-    radial-gradient(circle at 10% 90%, rgba(30, 90, 60, 0.2), transparent 50%), var(--color-bg-dark);
-  background-attachment: fixed;
+  color: var(--color-text-main);
+  background-color: var(--color-bg-dark);
 }
 
-/* Custom Pixel Scrollbar */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-panel-inset);
-  border: 2px solid var(--color-border-outer);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-border-highlight);
-  border: 2px solid var(--color-border-dark);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-gold);
-}
-
-button {
-  font-family: var(--font-pixel-body);
-  letter-spacing: 0.04em;
-}
-
-button:focus-visible {
-  outline: 3px solid var(--color-gold);
-  outline-offset: 2px;
-}
-
-.app-shell {
-  width: min(1200px, 100%);
-  margin: 0 auto;
-  padding: 24px 20px;
-}
-
-/* --- Top Header Bar --- */
-.top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 20px;
-  padding: 16px 20px;
-  background: var(--color-panel-bg);
-  border: 4px solid var(--color-border-dark);
+.panel,
+.top-bar,
+.game-canvas {
+  border-color: #102238;
   box-shadow:
-    inset -4px -4px 0 0 var(--color-border-outer),
-    inset 4px 4px 0 0 var(--color-border-highlight),
-    0 6px 16px rgba(0, 0, 0, 0.5);
-  position: relative;
+    inset -4px -4px 0 #48647b,
+    inset 4px 4px 0 #a4c3cc,
+    0 7px 0 rgba(16, 34, 56, 0.48);
 }
 
-h1,
-h2,
-p {
-  margin-top: 0;
+.panel {
+  background-color: #3b5267;
+  background-image: linear-gradient(135deg, rgba(255, 248, 219, 0.09), transparent 42%);
+}
+
+.top-bar {
+  background-color: #3b5267;
+  background-image:
+    linear-gradient(90deg, rgba(23, 49, 66, 0.28), transparent 72%), var(--asset-tile-copper);
+  background-size:
+    auto,
+    128px 128px;
+}
+
+.brand-crest {
+  background-color: #35647a;
+  background-image: var(--asset-frame-blue);
+}
+
+.brand-crest,
+.connection-emblem,
+.settings-gem,
+.expedition-mark,
+.avatar-chip,
+.build-icon,
+.battle-hero-icon,
+.compact-avatar,
+.result-seal {
+  position: relative;
+  overflow: hidden;
+}
+
+.ui-asset {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.brand-glyph,
+.connection-emblem > span:not(.ui-asset),
+.settings-gem > span:not(.ui-asset),
+.expedition-mark > span:not(.ui-asset),
+.avatar-chip > span:not(.ui-asset),
+.build-icon > span:not(.ui-asset),
+.battle-hero-icon > span:not(.ui-asset),
+.compact-avatar > span:not(.ui-asset),
+.result-glyph {
+  position: relative;
+  z-index: 1;
 }
 
 h1 {
-  margin-bottom: 0;
-  font-family: var(--font-pixel-heading);
-  font-size: clamp(1.4rem, 3.5vw, 2.2rem);
-  color: var(--color-gold);
-  text-shadow:
-    3px 3px 0 #000,
-    -1px -1px 0 #000,
-    1px -1px 0 #000,
-    -1px 1px 0 #000,
-    1px 1px 0 #000;
-  letter-spacing: 0.05em;
-}
-
-h2 {
-  margin-bottom: 14px;
-  font-family: var(--font-pixel-heading);
-  font-size: 0.95rem;
-  color: var(--color-gold);
-  text-shadow: 2px 2px 0 #000;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  color: #fff0ad;
+  text-shadow: 3px 3px 0 #243c53;
 }
 
 h2::before {
-  content: "◈";
-  color: var(--color-gold);
-  font-size: 0.9em;
+  content: "";
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  background-image: var(--asset-tile-gold);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  filter: drop-shadow(1px 1px 0 #172b3e);
 }
 
 .eyebrow {
-  margin-bottom: 6px;
-  color: #7fa3cb;
-  font-size: 0.78rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  font-weight: bold;
+  color: #bfe2de;
+}
+
+.connection-cluster,
+.connection-detail,
+.party-member,
+.compact-party-row,
+.settings-column,
+.result-party {
+  border-color: #152a40;
+  background-color: #203247;
+  background-image: var(--asset-tile-blue);
+  background-size: 128px 128px;
+  box-shadow: inset 2px 2px 0 rgba(157, 193, 206, 0.22);
+}
+
+.connection-detail {
+  background-color: #f3e2b8;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16), transparent), var(--asset-frame-ivory);
+  background-size:
+    auto,
+    100% 100%;
+  color: #30465a;
+}
+
+.connection-detail span {
+  color: #6a6f69;
+}
+
+.connection-detail strong {
+  color: #38546a;
 }
 
 .connection-cluster {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
-  background: var(--color-panel-inset);
-  border: 3px solid var(--color-border-dark);
-  box-shadow: inset 2px 2px 0 0 rgba(0, 0, 0, 0.6);
-  font-size: 0.85rem;
+  border-width: 3px;
 }
 
-.status-dot {
-  width: 10px;
-  height: 10px;
-  background: #77838c;
-  box-shadow: 0 0 6px currentColor;
-  border-radius: 1px;
+.connection-screen {
+  background-color: #3f586c;
+  background-image:
+    linear-gradient(135deg, rgba(255, 226, 151, 0.13), transparent 48%), var(--asset-tile-slate);
+  background-size:
+    auto,
+    128px 128px;
 }
 
-.status-connected {
-  background: #4ade80;
-  color: #4ade80;
+.connection-emblem,
+.settings-gem,
+.result-seal {
+  background-color: #47718a;
+  background-image: var(--asset-frame-blue);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  border-color: #d0aa52;
+  box-shadow:
+    0 4px 0 #162a3d,
+    0 0 18px rgba(255, 223, 139, 0.2);
 }
 
-.status-connecting,
-.status-reconnecting {
-  background: #fbbf24;
-  color: #fbbf24;
-  animation: pixel-blink 1s steps(2, start) infinite;
+.connection-emblem {
+  transform: rotate(45deg);
 }
 
-@keyframes pixel-blink {
-  to {
-    visibility: hidden;
+.connection-emblem span,
+.settings-gem span {
+  transform: rotate(-45deg);
+}
+
+.connection-screen h2,
+.result-screen h2,
+.settings-screen h2 {
+  color: #fff0ad;
+}
+
+.expedition-banner {
+  background-color: #4a6a64;
+  background-image:
+    linear-gradient(90deg, rgba(108, 210, 166, 0.2), transparent 68%), var(--asset-tile-slate);
+  background-size:
+    auto,
+    128px 128px;
+}
+
+.expedition-banner h2 {
+  color: #fff1b4;
+}
+
+.expedition-mark {
+  border-color: #e0bd68;
+  background-color: #6a5835;
+  background-image: var(--asset-frame-copper);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  color: #fff0ad;
+  box-shadow: 0 4px 0 #162a3d;
+}
+
+.expedition-mark span {
+  text-shadow: 2px 2px 0 #634d27;
+}
+
+.avatar-chip,
+.battle-hero-icon,
+.compact-avatar {
+  border-color: #a4d2d4;
+  background-color: #477fae;
+  background-image: var(--asset-tile-blue);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  box-shadow: 2px 2px 0 #152a40;
+}
+
+.avatar-chip span,
+.battle-hero-icon span {
+  text-shadow: 2px 2px 0 #31556e;
+}
+
+.party-member strong,
+.build-summary strong {
+  color: #fff0ad;
+}
+
+.tag-row span {
+  color: #d2f0e6;
+  border-color: #57918c;
+  background-color: #315b5e;
+  background-image: var(--asset-tile-slate);
+  background-size: 96px 96px;
+}
+
+.ready-badge,
+.waiting-badge,
+.status-ribbon,
+.account-level-badge {
+  border-color: #b5e0ca;
+  color: #f1ffe9;
+  background-color: #3e816a;
+  background-image: var(--asset-tile-blue);
+  background-size: 96px 96px;
+}
+
+.waiting-badge {
+  border-color: #9fb3c0;
+  color: #f0f4e9;
+  background-color: #617181;
+  background-image: var(--asset-tile-slate);
+}
+
+.status-ribbon {
+  color: #e1fbff;
+  border-color: #87d3dc;
+  background-color: #397594;
+  background-image: var(--asset-tile-blue);
+}
+
+.build-summary,
+.account-progress-card,
+.policy-summary > div,
+.equipment-summary {
+  border-color: #5d7c8d;
+  background-color: #29435a;
+  background-image: var(--asset-tile-slate);
+  background-size: 112px 112px;
+}
+
+.build-icon {
+  border-color: #e3bd61;
+  background-color: #7a6333;
+  background-image: var(--asset-tile-gold);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  box-shadow: 2px 2px 0 #162a3d;
+}
+
+.account-progress-card {
+  border-color: #62a6a5;
+  background-color: #2d5d69;
+  background-image: var(--asset-tile-blue);
+}
+
+.account-progress-heading,
+.account-progress-meter-label,
+.account-progress-footer,
+.account-unlock-row {
+  position: relative;
+}
+
+.account-unlock-row small {
+  background-color: #536d76;
+  background-image: var(--asset-frame-ivory-inner);
+  background-size: 100% 100%;
+  color: #fff5ca;
+}
+
+.account-level-badge {
+  border-color: #f0ce75;
+  color: #fff4b8;
+  background-color: #7a6333;
+  background-image: var(--asset-tile-gold);
+}
+
+.account-progress-track,
+.hp-progress,
+.mini-progress {
+  border-color: #172b3e;
+  background-color: #172b3e;
+}
+
+.account-progress-track i {
+  background: linear-gradient(90deg, #64d0c0, #d5ef9d);
+}
+
+.choice,
+.skill-button,
+.primary-button,
+.secondary-button {
+  border-color: #152a40;
+  box-shadow:
+    inset -3px -3px 0 rgba(24, 62, 86, 0.82),
+    inset 3px 3px 0 rgba(213, 245, 232, 0.44),
+    3px 3px 0 #152a40;
+}
+
+.choice,
+.skill-button {
+  background-color: #3f6880;
+  background-image: var(--asset-tile-blue);
+  background-size: 100% 100%;
+}
+
+.choice:hover:not(:disabled),
+.skill-button:hover:not(:disabled),
+.secondary-button:hover:not(:disabled) {
+  background-color: #5994a4;
+  background-image: var(--asset-tile-blue);
+}
+
+.choice.active,
+.skill-choice.selected,
+.equipment-option.selected,
+.policy-option.selected,
+.decision-choice.selected {
+  border-color: #f0cf74;
+  color: #fff3bd;
+  background-color: #7b6334;
+  background-image: var(--asset-tile-gold);
+  background-size: 100% 100%;
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 244, 189, 0.3),
+    3px 3px 0 #152a40;
+}
+
+.choice.active strong,
+.skill-choice.selected strong {
+  color: #fff3bd;
+}
+
+.primary-button {
+  border-color: #294e43;
+  background-color: #4b9d70;
+  background-image: var(--asset-tile-gold);
+  color: #fff9dd;
+}
+
+.primary-button:hover:not(:disabled) {
+  background-color: #65ba81;
+  background-image: var(--asset-tile-gold);
+}
+
+.secondary-button {
+  background-color: #477fae;
+  background-image: var(--asset-tile-blue);
+}
+
+.skill-choice,
+.equipment-option,
+.policy-option,
+.decision-choice {
+  border-color: #52738b;
+  background-color: #2d4e68;
+  background-image: var(--asset-tile-slate);
+  background-size: 100% 100%;
+}
+
+.skill-choice:hover:not(:disabled),
+.equipment-option:hover,
+.policy-option:hover,
+.decision-choice:hover {
+  border-color: #c7e9dc;
+  background-color: #447d91;
+  background-image: var(--asset-tile-blue);
+}
+
+.skill-choice small,
+.decision-choice small,
+.equipment-option small,
+.policy-option small {
+  color: #d0e0e2;
+}
+
+.recommendation-callout,
+.auto-notice,
+.synergy-notice,
+.decision-prompt {
+  border-color: #69a9aa;
+  background-color: #2e5e6d;
+  background-image: var(--asset-tile-blue);
+  background-size: 128px 128px;
+}
+
+.decision-prompt {
+  box-shadow:
+    inset 3px 3px 0 rgba(208, 240, 230, 0.24),
+    inset -3px -3px 0 rgba(18, 45, 62, 0.8),
+    0 5px 14px rgba(10, 28, 44, 0.28);
+}
+
+.decision-prompt-heading h2,
+.decision-countdown,
+.decision-prompt-copy {
+  color: #e4fbf3;
+}
+
+.decision-choice {
+  background-color: #315a70;
+}
+
+.battle-statusbar {
+  background-color: #315b70;
+  background-image: var(--asset-tile-blue);
+  background-size: 128px 128px;
+}
+
+.battle-intervention {
+  background-color: #496455;
+  background-image:
+    linear-gradient(90deg, rgba(255, 236, 174, 0.12), transparent 62%), var(--asset-tile-slate);
+  background-size:
+    auto,
+    128px 128px;
+}
+
+.battle-stage,
+.game-canvas {
+  background-color: #223b4e;
+  background-image: var(--asset-tile-blue);
+  background-size: 128px 128px;
+}
+
+.result-screen {
+  background-color: #496452;
+  background-image:
+    linear-gradient(135deg, rgba(255, 224, 134, 0.2), transparent 48%), var(--asset-tile-slate);
+  background-size:
+    auto,
+    128px 128px;
+}
+
+.result-reward-panel,
+.result-unlock-panel {
+  border-color: #e3bd61;
+  background-color: #796032;
+  background-image: var(--asset-tile-gold);
+  background-size: 128px 128px;
+  color: #fff5c7;
+}
+
+.result-party {
+  background-color: #29435a;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 44%), var(--asset-frame-dark);
+  background-size:
+    auto,
+    100% 100%;
+}
+
+.result-seal {
+  color: #fff0ad;
+}
+
+.victory-seal,
+.return-seal {
+  background-image: var(--asset-frame-copper);
+}
+
+.error-banner {
+  border-color: #7e3345;
+  background-color: #884a52;
+  background-image: var(--asset-tile-copper);
+  background-size: 128px 128px;
+  color: #fff0e5;
+}
+
+.form-hint,
+.danger-text {
+  color: #ffd38b;
+}
+
+@media (max-width: 620px) {
+  .app-shell::before {
+    margin-inline: 8px;
+  }
+
+  .brand-crest {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255, 231, 166, 0.28), transparent 38%),
+      radial-gradient(circle at 12% 90%, rgba(105, 190, 157, 0.26), transparent 44%),
+      linear-gradient(135deg, #31475a 0%, #24364a 48%, #3d5363 100%);
+    background-attachment: fixed;
+  }
+
+  /* Custom Pixel Scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-panel-inset);
+    border: 2px solid var(--color-border-outer);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-highlight);
+    border: 2px solid var(--color-border-dark);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gold);
+  }
+
+  button {
+    font-family: var(--font-pixel-body);
+    letter-spacing: 0.04em;
+  }
+
+  button:focus-visible {
+    outline: 3px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+
+  .app-shell {
+    width: min(1200px, 100%);
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+
+  .app-shell::before {
+    content: "";
+    display: block;
+    height: 8px;
+    margin: -10px 22px 14px;
+    background-image: var(--asset-tilemap-small);
+    background-position: center 44%;
+    background-repeat: no-repeat;
+    background-size: auto 78px;
+    image-rendering: pixelated;
+    opacity: 0.82;
+  }
+
+  /* --- Top Header Bar --- */
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 14px 18px;
+    background-color: #3b5267;
+    background-image:
+      linear-gradient(90deg, rgba(19, 32, 52, 0.2), transparent 72%), var(--asset-tile-slate);
+    background-size:
+      auto,
+      128px 128px;
+    border: 4px solid var(--color-border-dark);
+    box-shadow:
+      inset -4px -4px 0 0 var(--color-border-outer),
+      inset 4px 4px 0 0 var(--color-border-highlight),
+      0 6px 16px rgba(10, 26, 42, 0.34);
+    position: relative;
+  }
+
+  .brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .brand-crest,
+  .ui-frame-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
+    color: #fff1b2;
+    background-color: #2e5871;
+    background-image: var(--asset-frame-blue);
+    background-position: center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    filter: drop-shadow(2px 2px 0 #132034);
+    font-family: var(--font-pixel-heading);
+    font-size: 1.1rem;
+    text-shadow: 2px 2px 0 #34516d;
+  }
+
+  h1,
+  h2,
+  p {
+    margin-top: 0;
+  }
+
+  h1 {
+    margin-bottom: 0;
+    font-family: var(--font-pixel-heading);
+    font-size: clamp(1.4rem, 3.5vw, 2.2rem);
+    color: var(--color-gold);
+    text-shadow:
+      3px 3px 0 #000,
+      -1px -1px 0 #000,
+      1px -1px 0 #000,
+      -1px 1px 0 #000,
+      1px 1px 0 #000;
+    letter-spacing: 0.05em;
+  }
+
+  h2 {
+    margin-bottom: 14px;
+    font-family: var(--font-pixel-heading);
+    font-size: 0.95rem;
+    color: var(--color-gold);
+    text-shadow: 2px 2px 0 #000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  h2::before {
+    content: "◈";
+    color: var(--color-gold);
+    font-size: 0.9em;
+  }
+
+  .eyebrow {
+    margin-bottom: 6px;
+    color: #7fa3cb;
+    font-size: 0.78rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+
+  .connection-cluster {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background-color: #203247;
+    background-image: var(--asset-tile-blue);
+    background-size: 96px 96px;
+    border: 3px solid var(--color-border-dark);
+    box-shadow: inset 2px 2px 0 0 rgba(0, 0, 0, 0.6);
+    font-size: 0.85rem;
+  }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    background: #77838c;
+    box-shadow: 0 0 6px currentColor;
+    border-radius: 1px;
+  }
+
+  .status-connected {
+    background: #4ade80;
+    color: #4ade80;
+  }
+
+  .status-connecting,
+  .status-reconnecting {
+    background: #fbbf24;
+    color: #fbbf24;
+    animation: pixel-blink 1s steps(2, start) infinite;
+  }
+
+  @keyframes pixel-blink {
+    to {
+      visibility: hidden;
+    }
   }
 }
 
 .mode-badge {
   border: 2px solid var(--color-border-highlight);
-  background: var(--color-panel-bg);
+  background-color: #3b5267;
+  background-image: var(--asset-tile-blue);
+  background-size: 64px 64px;
   padding: 2px 8px;
   color: #a5c2e3;
   font-size: 0.75rem;
@@ -466,11 +1039,16 @@ h2::before {
 .panel {
   border: 4px solid var(--color-border-dark);
   padding: 18px;
-  background: var(--color-panel-bg);
+  background-color: var(--color-panel-bg);
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 42%), var(--asset-tile-slate);
+  background-size:
+    auto,
+    128px 128px;
   box-shadow:
     inset -4px -4px 0 0 var(--color-border-outer),
     inset 4px 4px 0 0 var(--color-border-highlight),
-    0 6px 14px rgba(0, 0, 0, 0.4);
+    0 6px 14px rgba(10, 26, 42, 0.32);
   position: relative;
 }
 
@@ -559,7 +1137,11 @@ h2::before {
   border: 3px solid var(--color-border-dark);
   padding: 10px 14px;
   color: var(--color-text-main);
-  background: var(--color-btn-blue);
+  background-color: var(--color-btn-blue);
+  background-image: var(--asset-tile-blue);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   box-shadow:
     inset -3px -3px 0 0 var(--color-btn-blue-border),
     inset 3px 3px 0 0 var(--color-btn-blue-top),
@@ -577,7 +1159,8 @@ h2::before {
   align-items: flex-start;
   gap: 4px;
   text-align: left;
-  background: #1a273b;
+  background-color: #29435b;
+  background-image: var(--asset-tile-slate);
   box-shadow:
     inset -3px -3px 0 0 #101928,
     inset 3px 3px 0 0 #2a3d5c,
@@ -598,7 +1181,8 @@ h2::before {
 .choice:hover:not(:disabled),
 .skill-button:hover:not(:disabled),
 .secondary-button:hover:not(:disabled) {
-  background: #243652;
+  background-color: #42647c;
+  background-image: var(--asset-tile-blue);
   box-shadow:
     inset -3px -3px 0 0 #152236,
     inset 3px 3px 0 0 #38537c,
@@ -630,7 +1214,11 @@ h2::before {
 }
 
 .primary-button {
-  background: var(--color-btn-green);
+  background-color: var(--color-btn-green);
+  background-image: var(--asset-tile-gold);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   box-shadow:
     inset -3px -3px 0 0 var(--color-btn-green-border),
     inset 3px 3px 0 0 var(--color-btn-green-top),
@@ -639,7 +1227,8 @@ h2::before {
 }
 
 .primary-button:hover:not(:disabled) {
-  background: #359f63;
+  background-color: #4fba78;
+  background-image: var(--asset-tile-gold);
   transform: translateY(-2px);
 }
 
@@ -1797,4 +2386,10 @@ button:disabled {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+/* Keep the large game surfaces readable; asset texture belongs to their
+   borders, controls, badges, and nested cards rather than every empty area. */
+.panel {
+  background-image: linear-gradient(135deg, rgba(255, 248, 219, 0.09), transparent 42%);
 }

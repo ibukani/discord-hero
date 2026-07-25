@@ -106,11 +106,32 @@ function drawScene(
   // Pixel Art Stage Background
   const background = new Graphics()
     .rect(0, 0, width, height)
-    .fill({ color: 0x0c131f })
+    .fill({ color: 0x3d6072 })
+    .poly([
+      0,
+      height * 0.68,
+      width * 0.18,
+      height * 0.46,
+      width * 0.36,
+      height * 0.68,
+      width * 0.58,
+      height * 0.42,
+      width * 0.84,
+      height * 0.68,
+      width,
+      height * 0.5,
+      width,
+      height,
+      0,
+      height,
+    ])
+    .fill({ color: 0x4b6f73 })
     .rect(0, height * 0.72, width, height * 0.28)
-    .fill({ color: 0x141e2e })
-    .rect(0, height * 0.72 - 2, width, 2)
-    .fill({ color: 0x2d3e58 });
+    .fill({ color: 0x52785f })
+    .rect(0, height * 0.72 - 4, width, 4)
+    .fill({ color: 0xa4c27c })
+    .rect(0, height * 0.72, width, 2)
+    .fill({ color: 0x315b61 });
   application.stage.addChild(background);
 
   if (snapshot === null) {
@@ -131,6 +152,7 @@ function drawScene(
     const y = height * 0.58;
     const isCurrent = player.id === currentPlayerId;
     const active = !player.downed && !player.eliminated && player.hp > 0;
+    playerLayer.addChild(createGroundShadow(x, y + 17, isCurrent ? 24 : 21));
     const body = createPlayerVisual(assetLibrary, player.classId, isCurrent, active);
     body.position.set(x, y);
     playerLayer.addChild(body);
@@ -164,6 +186,7 @@ function drawScene(
   enemies.forEach((enemy, index) => {
     const x = width - 48 - index * enemySpacing;
     const y = height * 0.58;
+    enemyLayer.addChild(createGroundShadow(x, y + 17, enemy.boss ? 30 : 20));
     const body = createEnemyVisual(assetLibrary, enemy.boss);
     body.position.set(x, y);
     enemyLayer.addChild(body);
@@ -175,8 +198,8 @@ function drawScene(
   // Top Status Bar Badge
   const headerBadge = new Graphics()
     .rect(12, 10, 180, 24)
-    .fill({ color: 0x141c2c })
-    .stroke({ width: 2, color: 0x2d3b54 });
+    .fill({ color: 0x355b6b })
+    .stroke({ width: 2, color: 0xa5c581 });
   application.stage.addChild(headerBadge);
   application.stage.addChild(
     createText(
@@ -191,8 +214,8 @@ function drawScene(
 
   const timerBadge = new Graphics()
     .rect(width - 84, 10, 72, 24)
-    .fill({ color: 0x141c2c })
-    .stroke({ width: 2, color: 0x2d3b54 });
+    .fill({ color: 0x355b6b })
+    .stroke({ width: 2, color: 0xa5c581 });
   application.stage.addChild(timerBadge);
   application.stage.addChild(
     createText(formatDuration(snapshot.elapsedMs), width - 48, 22, 12, 0xe6eef8, 0.5),
@@ -246,12 +269,16 @@ function createHealthBar(
     // Pixel frame background
     new Graphics()
       .rect(x, y, width, 8)
-      .fill({ color: 0x080c14 })
-      .stroke({ width: 1, color: 0x2d3b54 }),
+      .fill({ color: 0x203747 })
+      .stroke({ width: 1, color: 0xb4ce9b }),
     // Filled bar
     new Graphics().rect(x + 2, y + 2, innerWidth, 4).fill({ color }),
   );
   return container;
+}
+
+function createGroundShadow(x: number, y: number, radius: number): Graphics {
+  return new Graphics().ellipse(x, y, radius, 5).fill({ color: 0x274c50, alpha: 0.48 });
 }
 
 function createText(

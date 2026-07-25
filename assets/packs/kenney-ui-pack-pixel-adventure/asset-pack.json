@@ -140,6 +140,62 @@
           "height": 32
         }
       }
+    },
+    {
+      "id": "kenney.ui.tile-0006",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tiles/large/tile_0006.png",
+      "outputPath": "tiles/large/tile_0006.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "id": "kenney.ui.tile-0007",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tiles/large/tile_0007.png",
+      "outputPath": "tiles/large/tile_0007.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "id": "kenney.ui.tile-0008",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tiles/large/tile_0008.png",
+      "outputPath": "tiles/large/tile_0008.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "id": "kenney.ui.tile-0009",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tiles/large/tile_0009.png",
+      "outputPath": "tiles/large/tile_0009.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 32,
+          "height": 32
+        }
+      }
     }
   ]
 }
