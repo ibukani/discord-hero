@@ -1,0 +1,43 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "player-profile-persistence",
+  "title": "プレイヤープロフィールと遠征設定の永続化",
+  "objective": "D1に保存したクラス、スキル／装備ロードアウト、自動作戦を、次のルーム参加時にサーバー権威で復元し、設定変更を安全に更新する基盤を追加する。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "初回認証時のクラスを保存し、再接続または新しいルームでhelloを受けたときクライアントが送ったクラスより保存プロフィールを優先する",
+      "verification": "npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-2",
+      "description": "ロビー中のクラス、スキルロードアウト、装備、成長／進行／撤退／救助方針の変更が検証済みプロフィールとしてD1へ保存され、再参加時に復元される",
+      "verification": "npm run test --workspace @discord-hero/activity && npm run test --workspace @discord-hero/game-core"
+    },
+    {
+      "id": "AC-3",
+      "description": "保存JSONの破損・未知ID・旧形式を安全に無視してスターター設定へフォールバックし、実行中のゲーム状態やクライアント権限を迂回しない",
+      "verification": "npm run test --workspace @discord-hero/activity && npm run check:no-any"
+    },
+    {
+      "id": "AC-4",
+      "description": "D1 migration、復元統合テスト、仕様ドキュメントが追加され、プロフィール更新は単一の整合した書き込みとして扱われる",
+      "verification": "npm run check:architecture && npm run typecheck && npm run build"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": [
+    "apps/**",
+    "packages/**",
+    "migrations/**",
+    "docs/**",
+    "scripts/**",
+    ".ai/**",
+    "README.md"
+  ],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "必要に応じて変更理由、互換性、運用上の注意を記載する。"
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "auto-progression-foundation",
+  "title": "自動ルート・イベント・撤退判断の基盤を実装する",
+  "objective": "ゲーム仕様に定義された進行方針と撤退基準を、決定論的なサーバー権威型の遠征進行へ接続する。戦闘の合間に入力待ちを発生させず、ルート／イベントの自動票、帰還判断、再接続可能なスナップショット、Activity通知を実装する。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "ルートとイベントの選択肢が共有コンテンツとして検証され、各プレイヤーの進行方針による自動票と決定論的な同票解決がゲームコアで実行される",
+      "verification": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/content"
+    },
+    {
+      "id": "AC-2",
+      "description": "撤退基準により全滅とは区別された帰還結果をサーバーが確定し、完了イベントとリザルト表示へ伝播できる",
+      "verification": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/protocol && npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-3",
+      "description": "自動判断の通知がWebSocketイベントと復旧可能なスナップショットに含まれ、クライアントが戦闘画面で表示する",
+      "verification": "npm run test --workspace @discord-hero/protocol && npm run typecheck --workspace @discord-hero/activity && npm run build --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-4",
+      "description": "外部入力、保存スナップショット、Queue完了イベントの型安全性と既存の冪等性を維持する",
+      "verification": "npm run agent:verify -- .ai/tasks/auto-progression-foundation.json"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": ["README.md", "apps/**", "packages/**", "docs/**", "scripts/**", ".ai/**"],
+  "forbiddenPaths": [
+    ".github/workflows/deploy-production.yml",
+    ".env*",
+    ".dev.vars",
+    ".local/**",
+    "assets/repository-lfs/**",
+    "migrations/**"
+  ],
+  "notes": "判断はサーバーが即時確定し、ルート／イベントの必須投票画面は追加しない。旧スナップショットには安全な既定値を補完する。"
+}

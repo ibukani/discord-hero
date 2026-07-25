@@ -41,6 +41,44 @@ export function validateGameContent(content: GameContent): readonly string[] {
         issues.push(`skill ${skillId} belongs to ${skill.classId}, not ${classId}`);
       }
     }
+    for (const equipmentId of definition.equipmentIds) {
+      const equipment = content.equipment[equipmentId];
+      if (equipment === undefined) {
+        issues.push(`class ${classId} references missing equipment ${equipmentId}`);
+      } else if (!equipment.allowedClassIds.includes(classId)) {
+        issues.push(`equipment ${equipmentId} is not allowed for class ${classId}`);
+      }
+    }
+  }
+
+  for (const [equipmentId, equipment] of Object.entries(content.equipment)) {
+    if (equipment.id !== equipmentId) {
+      issues.push(`equipment key ${equipmentId} does not match id ${equipment.id}`);
+    }
+    if (equipment.allowedClassIds.length === 0 || equipment.tags.length === 0) {
+      issues.push(`equipment ${equipmentId} must have an allowed class and tag`);
+    }
+    for (const classId of equipment.allowedClassIds) {
+      if (!HERO_CLASS_IDS.includes(classId)) {
+        issues.push(`equipment ${equipmentId} references unknown class ${classId}`);
+      }
+    }
+    validateEquipmentEffects(equipmentId, equipment.effects, issues);
+  }
+
+  for (const [synergyId, synergy] of Object.entries(content.equipmentSynergies)) {
+    if (synergy.id !== synergyId) {
+      issues.push(`equipment synergy key ${synergyId} does not match id ${synergy.id}`);
+    }
+    if (synergy.requiredEquipmentTags.length === 0) {
+      issues.push(`equipment synergy ${synergyId} has no equipment tags`);
+    }
+    for (const skillId of synergy.requiredSkillIds) {
+      if (content.skills[skillId] === undefined) {
+        issues.push(`equipment synergy ${synergyId} references missing skill ${skillId}`);
+      }
+    }
+    validateEquipmentEffects(synergyId, synergy.effects, issues);
   }
 
   for (const [skillId, skill] of Object.entries(content.skills)) {
@@ -75,13 +113,85 @@ export function validateGameContent(content: GameContent): readonly string[] {
     }
   }
 
+  const decisionIds = new Set<string>();
+  for (const decision of content.stage.decisions ?? []) {
+    if (decisionIds.has(decision.id)) {
+      issues.push(`stage contains duplicate decision ${decision.id}`);
+    }
+    decisionIds.add(decision.id);
+    if (decision.choices.length === 0) {
+      issues.push(`decision ${decision.id} contains no choices`);
+    }
+    const choiceIds = new Set<string>();
+    for (const choice of decision.choices) {
+      if (choiceIds.has(choice.id)) {
+        issues.push(`decision ${decision.id} contains duplicate choice ${choice.id}`);
+      }
+      choiceIds.add(choice.id);
+      if (choice.risk < 0 || choice.risk > 100 || choice.reward < 0) {
+        issues.push(`decision choice ${choice.id} has invalid risk or reward`);
+      }
+      if (
+        (choice.healPercent !== undefined &&
+          (choice.healPercent < 0 || choice.healPercent > 100)) ||
+        (choice.damagePercent !== undefined &&
+          (choice.damagePercent < 0 || choice.damagePercent > 100))
+      ) {
+        issues.push(`decision choice ${choice.id} has invalid effect percentage`);
+      }
+    }
+  }
+
   for (const [upgradeId, upgrade] of Object.entries(content.upgrades)) {
     if (upgrade.id !== upgradeId) {
       issues.push(`upgrade key ${upgradeId} does not match id ${upgrade.id}`);
     }
   }
 
+  for (const outcome of ["victory", "return", "defeat"] as const) {
+    if (content.rewardPolicy.currencyBaseByOutcome[outcome] < 0) {
+      issues.push(`reward policy ${outcome} has a negative currency base`);
+    }
+    if (content.rewardPolicy.experienceBaseByOutcome[outcome] < 0) {
+      issues.push(`reward policy ${outcome} has a negative experience base`);
+    }
+  }
+  if (
+    content.rewardPolicy.currencyPerWave < 0 ||
+    content.rewardPolicy.currencyPerScore < 0 ||
+    content.rewardPolicy.experiencePerWave < 0 ||
+    content.rewardPolicy.experiencePerEnemyDefeated < 0
+  ) {
+    issues.push("reward policy contains a negative progression value");
+  }
+
   return issues;
+}
+
+function validateEquipmentEffects(
+  ownerId: string,
+  effects: readonly GameContent["equipment"][string]["effects"][number][],
+  issues: string[],
+): void {
+  for (const effect of effects) {
+    switch (effect.type) {
+      case "attack_power_bonus":
+      case "max_hp_bonus":
+      case "shield_on_wave":
+        if (effect.amount < 0) {
+          issues.push(`equipment effect ${ownerId} has a negative amount`);
+        }
+        break;
+      case "attack_interval_multiplier":
+      case "skill_cooldown_multiplier":
+      case "healing_multiplier":
+      case "rescue_duration_multiplier":
+        if (effect.multiplier <= 0) {
+          issues.push(`equipment effect ${ownerId} has a non-positive multiplier`);
+        }
+        break;
+    }
+  }
 }
 
 function assertRegisteredContentIsValid(): void {

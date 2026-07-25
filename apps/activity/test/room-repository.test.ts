@@ -113,6 +113,7 @@ function createFinishedEvent(): MatchFinishedEvent {
       outcome: "victory",
       durationMs: 60_000,
       completedAtTick: 600,
+      rewards: {},
     },
     players: [],
   };

@@ -10,6 +10,7 @@ export const DEFAULT_CONTENT: GameContent = {
       attackPower: 13,
       attackIntervalMs: 1_200,
       skillIds: ["guardian.fortify", "guardian.shield_bash"],
+      equipmentIds: ["weapon.iron-sword", "armor.guardian-plate", "accessory.rescue-charm"],
     },
     ranger: {
       id: "ranger",
@@ -17,6 +18,7 @@ export const DEFAULT_CONTENT: GameContent = {
       attackPower: 21,
       attackIntervalMs: 850,
       skillIds: ["ranger.piercing_shot", "ranger.volley"],
+      equipmentIds: ["weapon.iron-sword", "armor.ranger-cloak", "accessory.rescue-charm"],
     },
     mage: {
       id: "mage",
@@ -24,6 +26,7 @@ export const DEFAULT_CONTENT: GameContent = {
       attackPower: 18,
       attackIntervalMs: 1_000,
       skillIds: ["mage.arc_burst", "mage.chain_lightning"],
+      equipmentIds: ["weapon.arcane-focus", "armor.ranger-cloak", "accessory.arcane-signet"],
     },
     support: {
       id: "support",
@@ -31,6 +34,7 @@ export const DEFAULT_CONTENT: GameContent = {
       attackPower: 11,
       attackIntervalMs: 1_100,
       skillIds: ["support.group_heal", "support.aegis"],
+      equipmentIds: ["weapon.arcane-focus", "armor.guardian-plate", "accessory.rescue-charm"],
     },
   },
   skills: {
@@ -81,6 +85,64 @@ export const DEFAULT_CONTENT: GameContent = {
       classId: "support",
       cooldownMs: 8_000,
       effect: { type: "shield_all", power: 18 },
+    },
+  },
+  equipment: {
+    "weapon.iron-sword": {
+      id: "weapon.iron-sword",
+      slot: "weapon",
+      allowedClassIds: ["guardian", "ranger"],
+      tags: ["steel", "frontline"],
+      effects: [{ type: "attack_power_bonus", amount: 4 }],
+    },
+    "weapon.arcane-focus": {
+      id: "weapon.arcane-focus",
+      slot: "weapon",
+      allowedClassIds: ["mage", "support"],
+      tags: ["arcane", "supportive"],
+      effects: [{ type: "skill_cooldown_multiplier", multiplier: 0.92 }],
+    },
+    "armor.guardian-plate": {
+      id: "armor.guardian-plate",
+      slot: "armor",
+      allowedClassIds: ["guardian", "support"],
+      tags: ["barrier", "frontline"],
+      effects: [{ type: "max_hp_bonus", amount: 25 }],
+    },
+    "armor.ranger-cloak": {
+      id: "armor.ranger-cloak",
+      slot: "armor",
+      allowedClassIds: ["ranger", "mage"],
+      tags: ["swift", "evasion"],
+      effects: [{ type: "attack_interval_multiplier", multiplier: 0.92 }],
+    },
+    "accessory.rescue-charm": {
+      id: "accessory.rescue-charm",
+      slot: "accessory",
+      allowedClassIds: ["guardian", "ranger", "mage", "support"],
+      tags: ["rescue", "supportive"],
+      effects: [{ type: "rescue_duration_multiplier", multiplier: 0.85 }],
+    },
+    "accessory.arcane-signet": {
+      id: "accessory.arcane-signet",
+      slot: "accessory",
+      allowedClassIds: ["mage", "support"],
+      tags: ["arcane", "focus"],
+      effects: [{ type: "skill_cooldown_multiplier", multiplier: 0.9 }],
+    },
+  },
+  equipmentSynergies: {
+    "barrier-vanguard": {
+      id: "barrier-vanguard",
+      requiredEquipmentTags: ["barrier"],
+      requiredSkillIds: ["guardian.fortify"],
+      effects: [{ type: "shield_on_wave", amount: 12 }],
+    },
+    "arcane-resonance": {
+      id: "arcane-resonance",
+      requiredEquipmentTags: ["arcane"],
+      requiredSkillIds: ["mage.arc_burst", "mage.chain_lightning"],
+      effects: [{ type: "skill_cooldown_multiplier", multiplier: 0.94 }],
     },
   },
   enemies: {
@@ -139,6 +201,22 @@ export const DEFAULT_CONTENT: GameContent = {
       healingMultiplier: 1.3,
     },
   },
+  rewardPolicy: {
+    currencyBaseByOutcome: {
+      victory: 120,
+      return: 60,
+      defeat: 20,
+    },
+    experienceBaseByOutcome: {
+      victory: 100,
+      return: 45,
+      defeat: 15,
+    },
+    currencyPerWave: 25,
+    currencyPerScore: 0.1,
+    experiencePerWave: 20,
+    experiencePerEnemyDefeated: 5,
+  },
   stage: {
     id: "workbench-outskirts",
     waves: [
@@ -146,6 +224,32 @@ export const DEFAULT_CONTENT: GameContent = {
       { enemyDefinitionIds: ["goblin", "goblin", "wisp"] },
       { enemyDefinitionIds: ["goblin", "wisp", "wisp", "slime"] },
       { enemyDefinitionIds: ["clockwork-ogre"] },
+    ],
+    decisions: [
+      {
+        id: "outskirts-crossroads",
+        kind: "route",
+        choices: [
+          { id: "safe-trail", kind: "safe", risk: 12, reward: 20, healPercent: 4 },
+          { id: "hazard-yard", kind: "risky", risk: 38, reward: 70, damagePercent: 4 },
+        ],
+      },
+      {
+        id: "old-workbench",
+        kind: "event",
+        choices: [
+          { id: "field-repair", kind: "rest", risk: 5, reward: 25, healPercent: 18 },
+          { id: "mystery-cache", kind: "mystery", risk: 32, reward: 95, damagePercent: 7 },
+        ],
+      },
+      {
+        id: "ogre-gate",
+        kind: "route",
+        choices: [
+          { id: "reinforced-gate", kind: "safe", risk: 15, reward: 35, healPercent: 5 },
+          { id: "overdrive-route", kind: "risky", risk: 48, reward: 125, damagePercent: 8 },
+        ],
+      },
     ],
   },
 };

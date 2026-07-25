@@ -4,9 +4,11 @@ import {
   actionId,
   applyCommand,
   createGame,
+  getRescueActionDurationMs,
   matchId,
   playerId,
   stepGame,
+  type GameCommand,
   type GameContent,
   type GameEvent,
   type GameState,
@@ -37,6 +39,11 @@ import {
 } from "./room-connections.js";
 import { toGameCommand } from "./room-commands.js";
 import { RoomRepository, type RoomRecoveryFailure } from "./room-repository.js";
+import {
+  loadPlayerPreferences,
+  savePlayerPreferences,
+  type PlayerPreferences,
+} from "../persistence/player-repository.js";
 
 const TICK_MS = 100;
 const BROADCAST_INTERVAL_MS = 200;
@@ -77,7 +84,7 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
           this.roomId,
         );
       }
-      if (this.game?.status === "running" && this.ctx.getWebSockets().length > 0) {
+      if (this.game?.status === "running") {
         this.scheduleTick();
       }
     });
@@ -219,6 +226,7 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
     if (remainingSockets.length === 0) {
       this.stopTick();
       await this.persistCheckpoint();
+      this.scheduleTick();
     }
 
     this.logger.info({
@@ -246,6 +254,11 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
       return;
     }
     if (result !== "cleanup") {
+      if (this.game?.status === "running" && this.game.activeDecision !== null) {
+        await this.runDecisionAlarm();
+      } else if (this.game?.status === "running" && this.nextRescueAlarmDelayMs() !== null) {
+        await this.runRescueAlarm();
+      }
       return;
     }
 
@@ -300,11 +313,112 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
     }
 
     const game = this.ensureGame(attachment.roomId);
-    const result = applyCommand(game, toGameCommand(message, attachment), this.requireContent());
-    if (!result.accepted) {
-      this.rejectCommand(socket, message.actionId, result.errorCode ?? "invalid_command");
+    const playerWasPresent = game.players[attachment.playerId] !== undefined;
+    let persistedPreferences: PlayerPreferences | null = null;
+    if (message.type === "hello") {
+      try {
+        persistedPreferences = await loadPlayerPreferences(this.env.DB, attachment.playerId);
+      } catch (error: unknown) {
+        const normalized = normalizeError(error);
+        this.logger.warn({
+          event: "player_preferences_load_failed",
+          errorCode: normalized.name,
+        });
+      }
+    }
+    if (
+      (message.type === "restart_match" || message.type === "return_to_lobby") &&
+      game.result !== null
+    ) {
+      await this.repository.prepareCompletedMatch(game, this.matchStartedAt, this.roomId);
+    }
+    const initialResult = applyCommand(
+      game,
+      toGameCommand(message, attachment, persistedPreferences?.classId),
+      this.requireContent(),
+    );
+    if (!initialResult.accepted) {
+      this.rejectCommand(socket, message.actionId, initialResult.errorCode ?? "invalid_command");
       return;
     }
+
+    let resultState = initialResult.state;
+    const resultEvents: GameEvent[] = [...initialResult.events];
+    if (message.type === "hello" && !playerWasPresent && persistedPreferences !== null) {
+      const profileCommands: GameCommand[] = [];
+      if (persistedPreferences.loadout?.activeSkillIds.length) {
+        profileCommands.push({
+          type: "set_loadout",
+          actionId: actionId(`${message.actionId}:profile-loadout`),
+          playerId: playerId(attachment.playerId),
+          activeSkillIds: persistedPreferences.loadout.activeSkillIds,
+        });
+      }
+      if (persistedPreferences.loadout !== null) {
+        profileCommands.push({
+          type: "set_equipment",
+          actionId: actionId(`${message.actionId}:profile-equipment`),
+          playerId: playerId(attachment.playerId),
+          weaponId: persistedPreferences.loadout.weaponId,
+          armorId: persistedPreferences.loadout.armorId,
+          accessoryId: persistedPreferences.loadout.accessoryId,
+        });
+      }
+      if (persistedPreferences.automation !== null) {
+        profileCommands.push({
+          type: "set_automation_policy",
+          actionId: actionId(`${message.actionId}:profile-automation`),
+          playerId: playerId(attachment.playerId),
+          policy: persistedPreferences.automation,
+        });
+      }
+      for (const profileCommand of profileCommands) {
+        const profileResult = applyCommand(resultState, profileCommand, this.requireContent());
+        if (profileResult.accepted) {
+          resultState = profileResult.state;
+          resultEvents.push(...profileResult.events);
+        }
+      }
+    }
+
+    const shouldPersistPreferences =
+      (message.type === "hello" && !playerWasPresent) ||
+      (message.type === "select_class" && resultState.status === "lobby") ||
+      (message.type === "set_loadout" && resultState.status === "lobby") ||
+      (message.type === "set_equipment" && resultState.status === "lobby") ||
+      (message.type === "set_automation_policy" && resultState.status === "lobby");
+    if (shouldPersistPreferences) {
+      const player = resultState.players[attachment.playerId];
+      if (player !== undefined) {
+        try {
+          await savePlayerPreferences(
+            this.env.DB,
+            attachment.playerId,
+            {
+              classId: player.classId,
+              loadout: { ...player.loadout },
+              automation: { ...player.automation },
+            },
+            new Date().toISOString(),
+          );
+        } catch (error: unknown) {
+          const normalized = normalizeError(error);
+          this.logger.error({
+            event: "player_preferences_save_failed",
+            errorCode: normalized.name,
+          });
+          this.sendError(socket, "internal_error", "Player settings could not be saved");
+          return;
+        }
+      }
+    }
+
+    const result = {
+      accepted: true as const,
+      state: resultState,
+      events: resultEvents,
+      errorCode: null,
+    };
 
     const stateChanged = result.state !== game;
     this.game = result.state;
@@ -360,10 +474,22 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
   }
 
   private scheduleTick(): void {
-    if (this.tickTimer !== null || this.game?.status !== "running") {
+    const game = this.game;
+    if (game?.status !== "running") {
+      return;
+    }
+    if (game.activeDecision !== null) {
+      this.scheduleDecisionAlarm(game.activeDecision.deadlineMs - game.elapsedMs);
       return;
     }
     if (this.ctx.getWebSockets().length === 0) {
+      const rescueDelayMs = this.nextRescueAlarmDelayMs();
+      if (rescueDelayMs !== null) {
+        this.scheduleRescueAlarm(rescueDelayMs);
+      }
+      return;
+    }
+    if (this.tickTimer !== null) {
       return;
     }
 
@@ -371,6 +497,77 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
       this.tickTimer = null;
       this.ctx.waitUntil(this.runTick());
     }, TICK_MS);
+  }
+
+  private scheduleDecisionAlarm(remainingSimulationMs: number): void {
+    const delayMs = Math.max(1, remainingSimulationMs);
+    this.ctx.waitUntil(this.ctx.storage.setAlarm(Date.now() + delayMs));
+  }
+
+  private scheduleRescueAlarm(remainingSimulationMs: number): void {
+    const delayMs = Math.max(1, remainingSimulationMs);
+    this.ctx.waitUntil(this.ctx.storage.setAlarm(Date.now() + delayMs));
+  }
+
+  private nextRescueAlarmDelayMs(): number | null {
+    const game = this.game;
+    if (game?.status !== "running") {
+      return null;
+    }
+    let nextDelayMs = Number.POSITIVE_INFINITY;
+    for (const player of Object.values(game.players)) {
+      if (player.rescueDeadlineMs !== null) {
+        nextDelayMs = Math.min(nextDelayMs, player.rescueDeadlineMs - game.elapsedMs);
+      }
+      if (player.rescueTargetId !== null) {
+        nextDelayMs = Math.min(
+          nextDelayMs,
+          getRescueActionDurationMs(player) - player.rescueProgressMs,
+        );
+      }
+    }
+    return Number.isFinite(nextDelayMs) ? Math.max(1, nextDelayMs) : null;
+  }
+
+  private async runDecisionAlarm(): Promise<void> {
+    const game = this.game;
+    if (game?.status !== "running" || game.activeDecision === null) {
+      return;
+    }
+    const elapsedMs = Math.max(1, game.activeDecision.deadlineMs - game.elapsedMs);
+    const result = stepGame(game, elapsedMs, this.requireContent());
+    this.game = result.state;
+    this.stateRevision += 1;
+
+    await this.handlePostMutation(result.events, false);
+    if (result.events.length > 0) {
+      this.broadcastEvents(result.events);
+    }
+    this.broadcastSnapshot();
+    this.lastBroadcastAt = Date.now();
+    if (this.game.status === "running") {
+      this.scheduleTick();
+    }
+  }
+
+  private async runRescueAlarm(): Promise<void> {
+    const game = this.game;
+    const elapsedMs = this.nextRescueAlarmDelayMs();
+    if (game?.status !== "running" || elapsedMs === null) {
+      return;
+    }
+    const result = stepGame(game, Math.max(1, elapsedMs), this.requireContent());
+    this.game = result.state;
+    this.stateRevision += 1;
+    await this.handlePostMutation(result.events, false);
+    if (result.events.length > 0) {
+      this.broadcastEvents(result.events);
+    }
+    this.broadcastSnapshot();
+    this.lastBroadcastAt = Date.now();
+    if (this.game.status === "running") {
+      this.scheduleTick();
+    }
   }
 
   private async runTick(): Promise<void> {
@@ -429,6 +626,13 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
           event.type === "player_reconnected" ||
           event.type === "player_disconnected" ||
           event.type === "match_started" ||
+          event.type === "equipment_changed" ||
+          event.type === "decision_opened" ||
+          event.type === "decision_overridden" ||
+          event.type === "player_downed" ||
+          event.type === "rescue_started" ||
+          event.type === "player_rescued" ||
+          event.type === "player_eliminated" ||
           event.type === "upgrade_selected" ||
           event.type === "wave_spawned" ||
           event.type === "match_ended",

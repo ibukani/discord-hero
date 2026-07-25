@@ -1,0 +1,47 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "game-playable-slice",
+  "title": "自動遠征のプレイ可能なUI縦切りを実装する",
+  "objective": "既存のサーバー権威型戦闘を、Discord Activityで仕様どおり眺めて遊べる状態へ近づける。ロビー、設定、戦闘、結果を状態別に分離し、保存設定を次の遠征へ引き継げるクライアント基盤、自動戦闘の視認性、リザルト導線を実装する。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "戦闘画面がロビー設定や空の戦闘操作を常時表示せず、サーバー状態に応じてロビー、戦闘、結果の責務を分離して表示する",
+      "verification": "apps/activity/src/client/App.tsxとapps/activity/src/client/styles.cssをレビューし、activityの型検査・ビルドを実行する"
+    },
+    {
+      "id": "AC-2",
+      "description": "クライアントが保存可能な成長方針、進行方針、撤退基準を表示・編集でき、入力値は共有プロトコルで検証される",
+      "verification": "npm run test --workspace @discord-hero/protocol && npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-3",
+      "description": "ゲームコアが設定方針に基づく自動スキル使用と決定論的な自動強化を実行し、遠征中に入力待ちを発生させない",
+      "verification": "npm run test --workspace @discord-hero/game-core && npm run agent:smoke"
+    },
+    {
+      "id": "AC-4",
+      "description": "勝利または敗北時に主要戦績を表示し、再挑戦またはロビーへ戻る導線を提供する",
+      "verification": "npm run typecheck --workspace @discord-hero/activity && npm run build --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-5",
+      "description": "仮素材を追加する場合は16x16のプロジェクト所有素材としてアセットカタログへ登録し、必要な差し替え素材をdocsへ記録する",
+      "verification": "npm run assets:validate && npm run assets:prepare:local"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": ["apps/**", "packages/**", "docs/**", "README.md", "scripts/**", ".ai/**"],
+  "forbiddenPaths": [
+    ".github/workflows/deploy-production.yml",
+    ".env*",
+    ".dev.vars",
+    ".local/**",
+    "assets/repository-lfs/**",
+    "migrations/**"
+  ],
+  "notes": "既存のpendingUpgradeChoicesと旧クライアント互換性を壊さず、サーバー状態を正本として段階的に自動遠征へ移行する。"
+}

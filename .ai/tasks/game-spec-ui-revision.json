@@ -46,12 +46,6 @@
     "docs/GAME_SPEC.md",
     "docs/UI_SPEC.md"
   ],
-  "forbiddenPaths": [
-    "apps/**",
-    "packages/**",
-    "assets/**",
-    "migrations/**",
-    ".github/**"
-  ],
+  "forbiddenPaths": ["apps/**", "packages/**", "assets/**", "migrations/**", ".github/**"],
   "notes": "文書のみの変更。自動成長、自動ルート選択、自動撤退は完成時の目標仕様として記述し、現行コードの3択強化や手動操作と区別する。"
 }

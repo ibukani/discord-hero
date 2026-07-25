@@ -20,6 +20,13 @@ describe("default content", () => {
         expect(DEFAULT_CONTENT.enemies[enemyId]).toBeDefined();
       }
     }
+
+    for (const decision of DEFAULT_CONTENT.stage.decisions ?? []) {
+      expect(decision.choices.length).toBeGreaterThan(0);
+      for (const choice of decision.choices) {
+        expect(choice.id).toBeTruthy();
+      }
+    }
   });
 
   it("is registered by an exact ruleset and content version pair", () => {
@@ -54,6 +61,53 @@ describe("default content", () => {
       expect.arrayContaining([
         "class mage references missing skill mage.missing",
         "stage references missing enemy missing-enemy",
+      ]),
+    );
+  });
+
+  it("validates equipment availability and synergy references", () => {
+    const invalid: GameContent = {
+      ...DEFAULT_CONTENT,
+      classes: {
+        ...DEFAULT_CONTENT.classes,
+        guardian: {
+          ...DEFAULT_CONTENT.classes.guardian,
+          equipmentIds: ["equipment.missing"],
+        },
+      },
+      equipment: {
+        ...DEFAULT_CONTENT.equipment,
+        "equipment.invalid": {
+          id: "equipment.invalid",
+          slot: "weapon",
+          allowedClassIds: ["guardian"],
+          tags: [],
+          effects: [{ type: "attack_power_bonus", amount: -1 }],
+        },
+      },
+      equipmentSynergies: {
+        ...DEFAULT_CONTENT.equipmentSynergies,
+        "synergy.invalid": {
+          id: "synergy.invalid",
+          requiredEquipmentTags: ["missing-tag"],
+          requiredSkillIds: ["skill.missing"],
+          effects: [{ type: "skill_cooldown_multiplier", multiplier: 0 }],
+        },
+      },
+      rewardPolicy: {
+        ...DEFAULT_CONTENT.rewardPolicy,
+        currencyPerWave: -1,
+      },
+    };
+
+    expect(validateGameContent(invalid)).toEqual(
+      expect.arrayContaining([
+        "class guardian references missing equipment equipment.missing",
+        "equipment equipment.invalid must have an allowed class and tag",
+        "equipment effect equipment.invalid has a negative amount",
+        "equipment synergy synergy.invalid references missing skill skill.missing",
+        "equipment effect synergy.invalid has a non-positive multiplier",
+        "reward policy contains a negative progression value",
       ]),
     );
   });

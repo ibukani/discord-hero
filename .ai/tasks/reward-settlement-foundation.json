@@ -1,0 +1,43 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "reward-settlement-foundation",
+  "title": "遠征報酬の決定論的精算と冪等なアカウント進行",
+  "objective": "遠征結果からサーバーが決定論的にプレイヤー報酬を計算し、結果画面・完了Queueイベント・D1のプレイヤー進行へ冪等に反映する基盤を追加する。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "勝利・帰還・敗北でプレイヤー別の通貨と経験値報酬がゲームコアのseedと結果状態から決定論的に生成され、旧状態は報酬なしで復元できる",
+      "verification": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/protocol"
+    },
+    {
+      "id": "AC-2",
+      "description": "MatchFinishedEventと結果スナップショットがプレイヤー別報酬を検証可能な形で運び、結果画面が自分の報酬を表示する",
+      "verification": "npm run test --workspace @discord-hero/activity && npm run build"
+    },
+    {
+      "id": "AC-3",
+      "description": "Queue consumerは結果イベントを一度だけmatch_results、match_players、player_progressへ反映し、再配信・競合・部分失敗で二重付与しない",
+      "verification": "npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-4",
+      "description": "D1 migration、protocol schema、docsが報酬精算の状態と互換性を説明し、外部入力はunknownから検証される",
+      "verification": "npm run check:no-any && npm run check:architecture && npm run assets:validate"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": [
+    "apps/**",
+    "packages/**",
+    "migrations/**",
+    "docs/**",
+    "scripts/**",
+    ".ai/**",
+    "README.md"
+  ],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "必要に応じて変更理由、互換性、運用上の注意を記載する。"
+}

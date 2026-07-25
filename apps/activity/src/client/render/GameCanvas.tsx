@@ -130,14 +130,31 @@ function drawScene(
     const x = 48 + index * playerSpacing;
     const y = height * 0.58;
     const isCurrent = player.id === currentPlayerId;
-    const body = createPlayerVisual(assetLibrary, player.classId, isCurrent, player.hp > 0);
+    const active = !player.downed && !player.eliminated && player.hp > 0;
+    const body = createPlayerVisual(assetLibrary, player.classId, isCurrent, active);
     body.position.set(x, y);
     playerLayer.addChild(body);
 
     const nameColor = isCurrent ? 0xffcf40 : 0xe8f0f7;
     const name = createText(player.displayName, x, y + 32, 11, nameColor, 0.5);
     playerLayer.addChild(name);
-    playerLayer.addChild(createHealthBar(x - 26, y - 36, 52, player.hp, player.maxHp, 0x4ade80));
+    playerLayer.addChild(
+      createHealthBar(
+        x - 26,
+        y - 36,
+        52,
+        player.hp,
+        player.maxHp,
+        player.downed || player.eliminated ? 0xf59e0b : 0x4ade80,
+      ),
+    );
+    if (player.downed || player.eliminated) {
+      playerLayer.addChild(
+        createText(player.eliminated ? "OUT" : "DOWN", x, y - 52, 9, 0xfbbf24, 0.5),
+      );
+    } else if (player.rescueTargetId !== null) {
+      playerLayer.addChild(createText("RESCUE", x, y - 52, 8, 0x60a5fa, 0.5));
+    }
     if (player.shield > 0) {
       playerLayer.addChild(createText(`🛡 ${player.shield}`, x, y - 50, 10, 0x60a5fa, 0.5));
     }
@@ -282,6 +299,8 @@ function statusLabel(status: GameSnapshot["status"]): string {
       return "勝利";
     case "defeat":
       return "敗北";
+    case "return":
+      return "帰還";
   }
 }
 

@@ -1,0 +1,40 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "rescue-and-downed-state",
+  "title": "救助可能なダウン状態と自動救助を実装する",
+  "objective": "HP 0 のプレイヤーを即時脱落ではなく期限付きのダウン状態として扱い、保存された救助方針による自動救助と、本人による救助指示を、決定論的なサーバー権威型ゲーム進行・WebSocket・Durable Object 復元・Activity UIへ接続する。救助期限切れ、全員ダウン、重複／不正コマンドを明示的に処理し、再接続時にも救助進行を失わない。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "敵攻撃で HP 0 になったプレイヤーが downed 状態になり、救助期限内に救助されると決定論的な HP で復帰し、期限切れは eliminated として扱われる",
+      "verification": "npm run test --workspace @discord-hero/game-core"
+    },
+    {
+      "id": "AC-2",
+      "description": "救助方針に基づく自動救助と rescue_player コマンドが同じ救助処理を通り、救助中のプレイヤーは攻撃・スキルを実行せず、無効な対象・状態・重複操作を拒否する",
+      "verification": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/protocol"
+    },
+    {
+      "id": "AC-3",
+      "description": "ダウン、救助開始、救助完了、期限切れ、全滅の状態とイベントが WebSocket スキーマ、スナップショット保存／復元、Durable Object の再接続経路で検証される",
+      "verification": "npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-4",
+      "description": "Activity の戦闘画面がダウン／救助中／救助期限を表示し、対象選択を送信できる。既存の16x16素材を流用し、追加の画像素材なしでビルドできる",
+      "verification": "npm run build"
+    },
+    {
+      "id": "AC-5",
+      "description": "同一 seed・状態・コマンド列・経過時間の結果が一致し、旧保存スナップショットの既定値移行と拒否経路が維持される",
+      "verification": "npm run check:no-any && npm run check:architecture && npm run check:dependencies && npm run check:task-scope"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": ["apps/**", "packages/**", "docs/**", "scripts/**", ".ai/**", "README.md"],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "旧保存状態は downed=false / eliminated=false / rescueProgressMs=0 相当へ移行する。救助期限を持つ実行中ルームは Durable Object Alarm で再開可能にし、戦闘 tick 以外の期限待ちは hibernation を妨げない。"
+}

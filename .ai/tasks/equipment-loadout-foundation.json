@@ -1,0 +1,40 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "equipment-loadout-foundation",
+  "title": "武器・防具・装飾品ロードアウト基盤を実装する",
+  "objective": "クラスを役割の固定値ではなくビルドの土台として扱い、武器・防具・装飾品をクラスの利用可能候補から選べる決定論的な装備ロードアウト基盤を、既存のアクティブスキル・救助・自動遠征設定と統合する。装備効果、装備タグとスキルによる相性、保存／復元、ロビー編集、戦闘計算をサーバー権威型で接続する。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "武器・防具・装飾品の定義がスロット、利用可能クラス、効果、タグを持ち、登録コンテンツの参照切れ・不正値・重複が拒否される",
+      "verification": "npm run test --workspace @discord-hero/content"
+    },
+    {
+      "id": "AC-2",
+      "description": "ロビーでクラスが許可した装備だけを選択でき、スロット違い・未登録・クラス外・戦闘中の変更を拒否し、旧スキルロードアウトも保持する",
+      "verification": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/protocol"
+    },
+    {
+      "id": "AC-3",
+      "description": "装備効果が攻撃力、最大HP、攻撃間隔、スキル回転、回復、救助、Wave開始時シールドへ決定論的に反映され、タグとスキルの相性が表示可能なIDとして状態へ反映される",
+      "verification": "npm run test --workspace @discord-hero/game-core"
+    },
+    {
+      "id": "AC-4",
+      "description": "装備ロードアウト、効果、相性、旧保存状態の既定値がWebSocketスナップショットとDurable Object復元で検証され、Activity設定画面から送信できる",
+      "verification": "npm run test --workspace @discord-hero/activity && npm run build"
+    },
+    {
+      "id": "AC-5",
+      "description": "同一seed・状態・コマンド列・経過時間で装備の有無を含む結果が一致し、明示的な型安全性回避や新規画像素材なしで全検査を通過する",
+      "verification": "npm run check:no-any && npm run check:architecture && npm run check:dependencies && npm run agent:verify -- .ai/tasks/equipment-loadout-foundation.json"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": ["apps/**", "packages/**", "docs/**", "scripts/**", ".ai/**", "README.md"],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "旧保存状態は装備IDをnull、相性IDを空配列として移行する。ユーザー向け日本語名はクライアント表示層で管理し、ゲームコアは安定IDと効果だけを扱う。追加の画像素材は不要で、既存のTiny RPG素材とPixi図形を流用する。"
+}

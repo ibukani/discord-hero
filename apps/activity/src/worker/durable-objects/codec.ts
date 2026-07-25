@@ -3,6 +3,8 @@ import {
   enemyId,
   matchId,
   playerId,
+  type ActiveDecision,
+  type DecisionChoicePreview,
   type GameEvent,
   type GameState,
 } from "@discord-hero/game-core";
@@ -20,10 +22,27 @@ export function toClientSnapshot(state: GameState): GameSnapshot {
       hp: player.hp,
       maxHp: player.maxHp,
       shield: player.shield,
+      downed: player.downed,
+      eliminated: player.eliminated,
+      downedAtMs: player.downedAtMs,
+      rescueDeadlineMs: player.rescueDeadlineMs,
+      rescueTargetId: player.rescueTargetId === null ? null : playerId(player.rescueTargetId),
+      rescueProgressMs: player.rescueProgressMs,
+      rescueCooldownMs: player.rescueCooldownMs,
+      rescueDurationMultiplier: player.rescueDurationMultiplier,
+      waveShieldBonus: player.waveShieldBonus,
+      activeSynergyIds: [...player.activeSynergyIds],
       level: player.level,
       experience: player.experience,
       nextLevelExperience: player.nextLevelExperience,
       attackPower: player.attackPower,
+      loadout: {
+        activeSkillIds: [...player.loadout.activeSkillIds],
+        weaponId: player.loadout.weaponId,
+        armorId: player.loadout.armorId,
+        accessoryId: player.loadout.accessoryId,
+      },
+      automation: { ...player.automation },
       skillCooldowns: { ...player.skillCooldowns },
       upgrades: [...player.upgrades],
       pendingUpgradeChoices: [...player.pendingUpgradeChoices],
@@ -54,9 +73,31 @@ export function toClientSnapshot(state: GameState): GameSnapshot {
     tick: state.tick,
     elapsedMs: state.elapsedMs,
     waveIndex: state.waveIndex,
+    decisionIndex: state.decisionIndex,
+    activeDecision:
+      state.activeDecision === null
+        ? null
+        : {
+            ...state.activeDecision,
+            choices: state.activeDecision.choices.map((choice) => ({ ...choice })),
+            votes: { ...state.activeDecision.votes },
+            overriddenPlayerIds: [...state.activeDecision.overriddenPlayerIds],
+          },
+    lastDecision: state.lastDecision === null ? null : { ...state.lastDecision },
     players,
     enemies,
-    result: state.result === null ? null : { ...state.result },
+    result:
+      state.result === null
+        ? null
+        : {
+            ...state.result,
+            rewards: Object.fromEntries(
+              Object.entries(state.result.rewards).map(([playerId, reward]) => [
+                playerId,
+                { ...reward },
+              ]),
+            ),
+          },
   };
 }
 
@@ -66,6 +107,14 @@ export function toStoredGameState(state: GameState): StoredGameState {
     players[id] = {
       ...player,
       id: player.id,
+      loadout: {
+        activeSkillIds: [...player.loadout.activeSkillIds],
+        weaponId: player.loadout.weaponId,
+        armorId: player.loadout.armorId,
+        accessoryId: player.loadout.accessoryId,
+      },
+      automation: { ...player.automation },
+      activeSynergyIds: [...player.activeSynergyIds],
       skillCooldowns: { ...player.skillCooldowns },
       upgrades: [...player.upgrades],
       pendingUpgradeChoices: [...player.pendingUpgradeChoices],
@@ -84,7 +133,28 @@ export function toStoredGameState(state: GameState): StoredGameState {
     players,
     enemies,
     processedActionIds: [...state.processedActionIds],
-    result: state.result === null ? null : { ...state.result },
+    activeDecision:
+      state.activeDecision === null
+        ? null
+        : {
+            ...state.activeDecision,
+            choices: state.activeDecision.choices.map((choice) => ({ ...choice })),
+            votes: { ...state.activeDecision.votes },
+            overriddenPlayerIds: [...state.activeDecision.overriddenPlayerIds],
+          },
+    lastDecision: state.lastDecision === null ? null : { ...state.lastDecision },
+    result:
+      state.result === null
+        ? null
+        : {
+            ...state.result,
+            rewards: Object.fromEntries(
+              Object.entries(state.result.rewards).map(([playerId, reward]) => [
+                playerId,
+                { ...reward },
+              ]),
+            ),
+          },
   };
 }
 
@@ -94,6 +164,15 @@ export function fromStoredGameState(stored: StoredGameState): GameState {
     players[id] = {
       ...player,
       id: playerId(player.id),
+      rescueTargetId: player.rescueTargetId === null ? null : playerId(player.rescueTargetId),
+      loadout: {
+        activeSkillIds: [...player.loadout.activeSkillIds],
+        weaponId: player.loadout.weaponId,
+        armorId: player.loadout.armorId,
+        accessoryId: player.loadout.accessoryId,
+      },
+      automation: { ...player.automation },
+      activeSynergyIds: [...player.activeSynergyIds],
       skillCooldowns: { ...player.skillCooldowns },
       upgrades: [...player.upgrades],
       pendingUpgradeChoices: [...player.pendingUpgradeChoices],
@@ -112,7 +191,45 @@ export function fromStoredGameState(stored: StoredGameState): GameState {
     players,
     enemies,
     processedActionIds: stored.processedActionIds.map((id) => actionId(id)),
-    result: stored.result === null ? null : { ...stored.result },
+    activeDecision: cloneStoredActiveDecision(stored.activeDecision),
+    lastDecision: stored.lastDecision === null ? null : { ...stored.lastDecision },
+    result:
+      stored.result === null
+        ? null
+        : {
+            ...stored.result,
+            rewards: Object.fromEntries(
+              Object.entries(stored.result.rewards).map(([playerId, reward]) => [
+                playerId,
+                { ...reward },
+              ]),
+            ),
+          },
+  };
+}
+
+function cloneStoredActiveDecision(
+  source: StoredGameState["activeDecision"],
+): ActiveDecision | null {
+  if (source === null) {
+    return null;
+  }
+  const choices: DecisionChoicePreview[] = source.choices.map((choice) => ({
+    id: choice.id,
+    kind: choice.kind,
+    risk: choice.risk,
+    reward: choice.reward,
+    ...(choice.healPercent === undefined ? {} : { healPercent: choice.healPercent }),
+    ...(choice.damagePercent === undefined ? {} : { damagePercent: choice.damagePercent }),
+  }));
+  return {
+    kind: source.kind,
+    decisionId: source.decisionId,
+    choices,
+    openedAtMs: source.openedAtMs,
+    deadlineMs: source.deadlineMs,
+    votes: { ...source.votes },
+    overriddenPlayerIds: [...source.overriddenPlayerIds],
   };
 }
 
@@ -140,6 +257,62 @@ export function toDomainEvent(event: GameEvent): DomainEventDto {
       return { type: event.type, enemyId: event.enemyId };
     case "wave_spawned":
       return { type: event.type, waveIndex: event.waveIndex };
+    case "decision_opened":
+      return {
+        type: event.type,
+        decision: {
+          ...event.decision,
+          choices: event.decision.choices.map((choice) => ({ ...choice })),
+          votes: { ...event.decision.votes },
+          overriddenPlayerIds: [...event.decision.overriddenPlayerIds],
+        },
+      };
+    case "decision_overridden":
+      return {
+        type: event.type,
+        playerId: event.playerId,
+        decisionId: event.decisionId,
+        choiceId: event.choiceId,
+      };
+    case "decision_resolved":
+      return { type: event.type, decision: { ...event.decision } };
+    case "retreat_decided":
+      return {
+        type: event.type,
+        policy: event.policy,
+        reason: event.reason,
+        averageHpPercent: event.averageHpPercent,
+      };
+    case "player_downed":
+      return {
+        type: event.type,
+        playerId: event.playerId,
+        rescueDeadlineMs: event.rescueDeadlineMs,
+      };
+    case "rescue_started":
+      return {
+        type: event.type,
+        rescuerId: event.rescuerId,
+        targetId: event.targetId,
+      };
+    case "player_rescued":
+      return {
+        type: event.type,
+        rescuerId: event.rescuerId,
+        targetId: event.targetId,
+        hp: event.hp,
+      };
+    case "player_eliminated":
+      return { type: event.type, playerId: event.playerId };
+    case "equipment_changed":
+      return {
+        type: event.type,
+        playerId: event.playerId,
+        weaponId: event.weaponId,
+        armorId: event.armorId,
+        accessoryId: event.accessoryId,
+        synergyIds: [...event.synergyIds],
+      };
     case "upgrade_choices_created":
       return {
         type: event.type,
@@ -152,7 +325,24 @@ export function toDomainEvent(event: GameEvent): DomainEventDto {
         playerId: event.playerId,
         upgradeId: event.upgradeId,
       };
+    case "skill_used":
+      return {
+        type: event.type,
+        playerId: event.playerId,
+        skillId: event.skillId,
+      };
     case "match_ended":
-      return { type: event.type, result: { ...event.result } };
+      return {
+        type: event.type,
+        result: {
+          ...event.result,
+          rewards: Object.fromEntries(
+            Object.entries(event.result.rewards).map(([playerId, reward]) => [
+              playerId,
+              { ...reward },
+            ]),
+          ),
+        },
+      };
   }
 }

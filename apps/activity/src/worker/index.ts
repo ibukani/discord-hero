@@ -151,6 +151,7 @@ async function handleDiscordAuth(request: Request, env: RuntimeEnv): Promise<Res
     id: identity.userId,
     discordUserId: identity.userId,
     displayName: identity.displayName,
+    initialClassId: "guardian",
     now: now.toISOString(),
   });
   const sessionToken = await issueSessionToken(
@@ -185,6 +186,7 @@ async function handleLocalAuth(request: Request, env: RuntimeEnv, id: string): P
     id: localUserId,
     discordUserId: null,
     displayName: input.displayName,
+    initialClassId: input.classId,
     now: now.toISOString(),
   });
   const sessionToken = await issueSessionToken(

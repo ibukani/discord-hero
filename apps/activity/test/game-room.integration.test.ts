@@ -2,17 +2,28 @@ import { env } from "cloudflare:workers";
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { CURRENT_CONTENT } from "@discord-hero/content";
 import {
+  actionId,
+  applyCommand,
+  createGame,
+  matchId,
+  playerId,
+  type GameState,
+} from "@discord-hero/game-core";
+import {
   GAME_WEBSOCKET_PROTOCOL,
   PROTOCOL_VERSION,
   parseServerMessage,
+  type StoredGameState,
   type ServerMessage,
 } from "@discord-hero/protocol";
+import { toStoredGameState } from "../src/worker/durable-objects/codec.js";
 import { describe, expect, it } from "vitest";
 import {
   issueRoomTicket,
   issueSessionToken,
   verifySessionToken,
 } from "../src/worker/auth/tokens.js";
+import { upsertPlayer } from "../src/worker/persistence/player-repository.js";
 import { type GameRoom } from "../src/worker/durable-objects/GameRoom.js";
 import {
   COMPLETION_OUTBOX_STORAGE_KEY,
@@ -66,6 +77,30 @@ describe("GameRoom integration", () => {
     }
     expect(Object.keys(firstWelcome.snapshot.players)).toEqual(["player-one"]);
 
+    const equipmentEventPromise = nextMessage(
+      firstSocket,
+      (message) =>
+        message.type === "events" &&
+        message.events.some((event) => event.type === "equipment_changed"),
+    );
+    const equipmentAckPromise = nextMessage(
+      firstSocket,
+      (message) => message.type === "command_ack" && message.actionId === "equipment-first",
+    );
+    firstSocket.send(
+      JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "set_equipment",
+        actionId: "equipment-first",
+        weaponId: firstWelcome.snapshot.players["player-one"]?.loadout.weaponId,
+        armorId: firstWelcome.snapshot.players["player-one"]?.loadout.armorId,
+        accessoryId: firstWelcome.snapshot.players["player-one"]?.loadout.accessoryId,
+      }),
+    );
+    const equipmentEvent = await equipmentEventPromise;
+    await equipmentAckPromise;
+    expect(equipmentEvent.type).toBe("events");
+
     await runInDurableObject(stub, async (_instance: GameRoom, state) => {
       const snapshot = await state.storage.get("room-snapshot");
       expect(snapshot).toBeDefined();
@@ -97,6 +132,12 @@ describe("GameRoom integration", () => {
     }
     expect(Object.keys(secondWelcome.snapshot.players)).toEqual(["player-one"]);
     expect(secondWelcome.snapshot.matchId).toBe(firstWelcome.snapshot.matchId);
+    expect(secondWelcome.snapshot.players["player-one"]?.loadout).toEqual(
+      firstWelcome.snapshot.players["player-one"]?.loadout,
+    );
+    expect(secondWelcome.snapshot.players["player-one"]?.activeSynergyIds).toEqual([
+      "barrier-vanguard",
+    ]);
 
     secondSocket.close(1000, "test complete");
   });
@@ -146,6 +187,238 @@ describe("GameRoom integration", () => {
 
     socket.close(1000, "test complete");
   });
+
+  it("restores the server-owned player profile and ignores a client class override", async () => {
+    const player = "profile-player";
+    const profileRoomId = "integration-room-profile-one";
+    await upsertPlayer(env.DB, {
+      id: player,
+      discordUserId: null,
+      displayName: "Profile Player",
+      initialClassId: "mage",
+      now: "2026-07-25T00:00:00.000Z",
+    });
+
+    const firstStub = roomStub(profileRoomId);
+    const firstSocket = requireWebSocket(
+      await connect(
+        firstStub,
+        profileRoomId,
+        await createRoomTicket(profileRoomId, player, "Profile Player"),
+      ),
+    );
+    firstSocket.accept();
+    const firstWelcomePromise = nextMessage(firstSocket, (message) => message.type === "welcome");
+    firstSocket.send(JSON.stringify(helloMessage("profile-hello-one", null)));
+    const firstWelcome = await firstWelcomePromise;
+    expect(firstWelcome.type).toBe("welcome");
+    if (firstWelcome.type !== "welcome") {
+      throw new Error("Expected first profile welcome");
+    }
+    expect(firstWelcome.snapshot.players[player]?.classId).toBe("mage");
+
+    await sendAndWaitForAck(firstSocket, {
+      protocolVersion: PROTOCOL_VERSION,
+      type: "set_loadout",
+      actionId: "profile-loadout",
+      activeSkillIds: ["mage.arc_burst", "mage.chain_lightning"],
+    });
+    await sendAndWaitForAck(firstSocket, {
+      protocolVersion: PROTOCOL_VERSION,
+      type: "set_equipment",
+      actionId: "profile-equipment",
+      weaponId: "weapon.arcane-focus",
+      armorId: "armor.ranger-cloak",
+      accessoryId: "accessory.arcane-signet",
+    });
+    await sendAndWaitForAck(firstSocket, {
+      protocolVersion: PROTOCOL_VERSION,
+      type: "set_automation_policy",
+      actionId: "profile-automation",
+      policy: {
+        growth: "skill",
+        progress: "reward",
+        retreat: "last_stand",
+        rescue: "priority",
+      },
+    });
+    firstSocket.close(1000, "profile saved");
+
+    const secondRoomId = "integration-room-profile-two";
+    const secondStub = roomStub(secondRoomId);
+    const secondSocket = requireWebSocket(
+      await connect(
+        secondStub,
+        secondRoomId,
+        await createRoomTicket(secondRoomId, player, "Profile Player"),
+      ),
+    );
+    secondSocket.accept();
+    const secondWelcomePromise = nextMessage(secondSocket, (message) => message.type === "welcome");
+    secondSocket.send(JSON.stringify(helloMessage("profile-hello-two", null)));
+    const secondWelcome = await secondWelcomePromise;
+    expect(secondWelcome.type).toBe("welcome");
+    if (secondWelcome.type !== "welcome") {
+      throw new Error("Expected restored profile welcome");
+    }
+    const restoredPlayer = secondWelcome.snapshot.players[player];
+    expect(restoredPlayer?.classId).toBe("mage");
+    expect(restoredPlayer?.loadout).toEqual({
+      activeSkillIds: ["mage.arc_burst", "mage.chain_lightning"],
+      weaponId: "weapon.arcane-focus",
+      armorId: "armor.ranger-cloak",
+      accessoryId: "accessory.arcane-signet",
+    });
+    expect(restoredPlayer?.automation).toEqual({
+      growth: "skill",
+      progress: "reward",
+      retreat: "last_stand",
+      rescue: "priority",
+    });
+    secondSocket.close(1000, "profile restored");
+
+    await env.DB.prepare(
+      `UPDATE player_preferences
+       SET class_id = ?1, loadout_json = ?2, automation_json = ?3
+       WHERE player_id = ?4`,
+    )
+      .bind("unknown-class", "{broken", "[broken", player)
+      .run();
+
+    const thirdRoomId = "integration-room-profile-corrupt";
+    const thirdStub = roomStub(thirdRoomId);
+    const thirdSocket = requireWebSocket(
+      await connect(
+        thirdStub,
+        thirdRoomId,
+        await createRoomTicket(thirdRoomId, player, "Profile Player"),
+      ),
+    );
+    thirdSocket.accept();
+    const thirdWelcomePromise = nextMessage(thirdSocket, (message) => message.type === "welcome");
+    thirdSocket.send(JSON.stringify(helloMessage("profile-hello-three", null)));
+    const thirdWelcome = await thirdWelcomePromise;
+    expect(thirdWelcome.type).toBe("welcome");
+    if (thirdWelcome.type !== "welcome") {
+      throw new Error("Expected fallback profile welcome");
+    }
+    const fallbackPlayer = thirdWelcome.snapshot.players[player];
+    expect(fallbackPlayer?.classId).toBe("guardian");
+    expect(fallbackPlayer?.loadout.activeSkillIds).toEqual([
+      "guardian.fortify",
+      "guardian.shield_bash",
+    ]);
+    expect(fallbackPlayer?.automation).toEqual({
+      growth: "adaptive",
+      progress: "balanced",
+      retreat: "standard",
+      rescue: "standard",
+    });
+    thirdSocket.close(1000, "profile fallback verified");
+  });
+
+  it("uses a Durable Object alarm for a pending decision after hibernation", async () => {
+    const roomId = "integration-room-decision-alarm";
+    const stub = roomStub(roomId);
+    const ticket = await createRoomTicket(roomId, "player-one", "Player One");
+    const response = await connect(stub, roomId, ticket);
+    const socket = requireWebSocket(response);
+    socket.accept();
+
+    const welcomePromise = nextMessage(socket, (message) => message.type === "welcome");
+    socket.send(JSON.stringify(helloMessage("decision-hello", null)));
+    await welcomePromise;
+
+    socket.send(
+      JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "set_ready",
+        actionId: "decision-ready",
+        ready: true,
+      }),
+    );
+    await nextMessage(
+      socket,
+      (message) => message.type === "command_ack" && message.actionId === "decision-ready",
+    );
+
+    const openedPromise = nextMessage(
+      socket,
+      (message) =>
+        message.type === "events" &&
+        message.events.some((event) => event.type === "decision_opened"),
+    );
+    socket.send(
+      JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "start_match",
+        actionId: "decision-start",
+      }),
+    );
+    const opened = await openedPromise;
+    expect(opened.type).toBe("events");
+
+    await evictDurableObject(stub, { webSockets: "hibernate" });
+
+    const resolvedPromise = nextMessage(
+      socket,
+      (message) =>
+        message.type === "events" &&
+        message.events.some((event) => event.type === "decision_resolved"),
+    );
+    const snapshotPromise = nextMessage(
+      socket,
+      (message) => message.type === "snapshot" && message.snapshot.activeDecision === null,
+    );
+    expect(await runDurableObjectAlarm(stub)).toBe(true);
+    const resolved = await resolvedPromise;
+    const snapshot = await snapshotPromise;
+    expect(resolved.type).toBe("events");
+    expect(snapshot.type).toBe("snapshot");
+
+    socket.close(1000, "test complete");
+  }, 15_000);
+
+  it("restores a rescue action and advances it through a Durable Object alarm", async () => {
+    const roomId = "integration-room-rescue-alarm";
+    const stub = roomStub(roomId);
+    const game = createRescueGame();
+    const target = game.players["player-2"];
+    const rescuer = game.players["player-1"];
+    if (target === undefined || rescuer === undefined) {
+      throw new Error("Expected rescue party");
+    }
+    target.hp = 0;
+    target.downed = true;
+    target.downedAtMs = game.elapsedMs;
+    target.rescueDeadlineMs = game.elapsedMs + 10_000;
+    rescuer.rescueTargetId = target.id;
+    rescuer.rescueProgressMs = 0;
+    for (const enemy of Object.values(game.enemies)) {
+      enemy.hp = enemy.maxHp;
+    }
+
+    await runInDurableObject(stub, async (_instance: GameRoom, state) => {
+      await state.storage.put("room-snapshot", {
+        storageSchemaVersion: 2,
+        savedAt: "2026-07-25T00:00:00.000Z",
+        stateRevision: 1,
+        roomId,
+        matchStartedAt: "2026-07-25T00:00:00.000Z",
+        game: toStoredGameState(game),
+      });
+      await state.storage.setAlarm(Date.now() + 60_000);
+    });
+    await evictDurableObject(stub, { webSockets: "close" });
+
+    expect(await runDurableObjectAlarm(stub)).toBe(true);
+    const stored = await runInDurableObject(stub, async (_instance: GameRoom, state) =>
+      state.storage.get<{ readonly game: StoredGameState }>("room-snapshot"),
+    );
+    expect(stored?.game.players["player-2"]?.downed).toBe(false);
+    expect(stored?.game.players["player-2"]?.hp).toBeGreaterThan(0);
+    expect(stored?.game.players["player-1"]?.rescueCooldownMs).toBeGreaterThan(0);
+  }, 15_000);
 
   it("acknowledges accepted commands and serves an explicit resync snapshot", async () => {
     const roomId = "integration-room-ack";
@@ -350,6 +623,51 @@ describe("GameRoom integration", () => {
   }, 15_000);
 });
 
+function createRescueGame(): GameState {
+  let game = createGame({
+    matchId: matchId("rescue-alarm-match"),
+    seed: "rescue-alarm-seed",
+    content: CURRENT_CONTENT,
+  });
+  for (const [index, id] of ["player-1", "player-2"].entries()) {
+    game = applyCommand(
+      game,
+      {
+        type: "join_player",
+        actionId: actionId(`rescue-join-${index}`),
+        playerId: playerId(id),
+        displayName: `Player ${index + 1}`,
+        classId: index === 0 ? "guardian" : "support",
+      },
+      CURRENT_CONTENT,
+    ).state;
+  }
+  for (const [index, id] of ["player-1", "player-2"].entries()) {
+    game = applyCommand(
+      game,
+      {
+        type: "set_ready",
+        actionId: actionId(`rescue-ready-${index}`),
+        playerId: playerId(id),
+        ready: true,
+      },
+      CURRENT_CONTENT,
+    ).state;
+  }
+  game = applyCommand(
+    game,
+    {
+      type: "start_match",
+      actionId: actionId("rescue-start"),
+      playerId: playerId("player-1"),
+    },
+    CURRENT_CONTENT,
+  ).state;
+  game.activeDecision = null;
+  game.decisionIndex = CURRENT_CONTENT.stage.decisions?.length ?? 0;
+  return game;
+}
+
 function roomStub(roomId: string): DurableObjectStub<GameRoom> {
   const canonicalKey = `local:test-discord-client:${roomId}`;
   return env.GAME_ROOMS.get(env.GAME_ROOMS.idFromName(canonicalKey));
@@ -429,4 +747,19 @@ function nextMessage(
 
     socket.addEventListener("message", onMessage);
   });
+}
+
+async function sendAndWaitForAck(
+  socket: WebSocket,
+  message: Readonly<Record<string, unknown>> & { readonly actionId: string },
+): Promise<void> {
+  const action = message;
+  const ackPromise = nextMessage(
+    socket,
+    (serverMessage) =>
+      serverMessage.type === "command_ack" && serverMessage.actionId === action.actionId,
+  );
+  socket.send(JSON.stringify(message));
+  const ack = await ackPromise;
+  expect(ack.type).toBe("command_ack");
 }

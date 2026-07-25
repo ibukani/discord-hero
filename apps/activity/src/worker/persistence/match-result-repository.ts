@@ -17,8 +17,8 @@ export async function persistMatchResult(
       .prepare(
         `INSERT INTO match_results (
           match_id, ruleset_version, content_version, seed, outcome,
-          started_at, ended_at, duration_ms
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
+          started_at, ended_at, duration_ms, rewards_json
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
       )
       .bind(
         event.matchId,
@@ -29,6 +29,7 @@ export async function persistMatchResult(
         event.startedAt,
         event.endedAt,
         event.result.durationMs,
+        JSON.stringify(event.result.rewards),
       ),
   ];
 
@@ -57,8 +58,8 @@ export async function persistMatchResult(
       db
         .prepare(
           `INSERT INTO match_players (
-            match_id, player_id, class_id, score, stats_json
-          ) VALUES (?1, ?2, ?3, ?4, ?5)`,
+            match_id, player_id, class_id, score, stats_json, rewards_json
+          ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
         )
         .bind(
           event.matchId,
@@ -66,7 +67,22 @@ export async function persistMatchResult(
           player.classId,
           player.score,
           JSON.stringify(player.stats),
+          JSON.stringify(event.result.rewards[player.playerId] ?? { currency: 0, experience: 0 }),
         ),
+    );
+    const reward = event.result.rewards[player.playerId] ?? { currency: 0, experience: 0 };
+    statements.push(
+      db
+        .prepare(
+          `UPDATE player_progress
+           SET account_level = MAX(account_level, CAST((experience + ?1) / 100 AS INTEGER) + 1),
+               experience = experience + ?1,
+               game_currency = game_currency + ?2,
+               version = version + 1,
+               updated_at = ?3
+           WHERE player_id = ?4`,
+        )
+        .bind(reward.experience, reward.currency, event.endedAt, player.playerId),
     );
   }
 

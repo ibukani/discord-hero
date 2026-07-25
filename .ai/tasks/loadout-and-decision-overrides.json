@@ -1,0 +1,35 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "loadout-and-decision-overrides",
+  "title": "スキルロードアウトと自動判断の手動上書きを実装する",
+  "objective": "遠征前にクラスで利用可能なスキルからアクティブロードアウトを選べる基盤と、遠征中のルート／イベント判断に確定前の任意上書きを行える基盤を、決定論的なサーバー権威型ゲーム進行へ接続する。入力しなくても期限で自動確定し、再接続・保存・拒否経路を維持する。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "クラス利用可能スキルから選択したロードアウトだけが自動使用・手動使用され、無効なロードアウト変更は拒否される",
+      "verification": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/protocol"
+    },
+    {
+      "id": "AC-2",
+      "description": "ルート／イベント判断に選択肢、期限、現在の投票状態を含む確定前スナップショットが作られ、期限または全員の上書きで自動確定する",
+      "verification": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-3",
+      "description": "WebSocket境界、Durable Object復元、Activity設定／判断UIが新しい状態とイベントを検証付きで扱う",
+      "verification": "npm run typecheck && npm run build --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-4",
+      "description": "同一シード・同一コマンド列の結果が一致し、重複コマンド、無効な上書き、旧スナップショットを安全に扱う",
+      "verification": "npm run agent:verify -- .ai/tasks/loadout-and-decision-overrides.json"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": ["README.md", "apps/**", "packages/**", "docs/**", "scripts/**", ".ai/**"],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "必要に応じて変更理由、互換性、運用上の注意を記載する。"
+}

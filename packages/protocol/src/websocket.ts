@@ -8,7 +8,14 @@ import {
   RoomIdSchema,
   SafeIdSchema,
 } from "./common.js";
-import { GameSnapshotSchema } from "./game-state.js";
+import {
+  ActiveDecisionSchema,
+  AutomationPolicySchema,
+  DecisionSummarySchema,
+  GameSnapshotSchema,
+  MatchResultSchema,
+  RetreatPolicySchema,
+} from "./game-state.js";
 
 const ClientEnvelopeSchema = z.object({
   protocolVersion: ProtocolVersionSchema,
@@ -32,7 +39,27 @@ export const ClientMessageSchema = z.discriminatedUnion("type", [
     classId: HeroClassIdSchema,
   }),
   ClientEnvelopeSchema.extend({
+    type: z.literal("set_automation_policy"),
+    policy: AutomationPolicySchema,
+  }),
+  ClientEnvelopeSchema.extend({
+    type: z.literal("set_loadout"),
+    activeSkillIds: z.array(z.string().min(1).max(96)).min(1).max(2),
+  }),
+  ClientEnvelopeSchema.extend({
+    type: z.literal("set_equipment"),
+    weaponId: SafeIdSchema.nullable(),
+    armorId: SafeIdSchema.nullable(),
+    accessoryId: SafeIdSchema.nullable(),
+  }),
+  ClientEnvelopeSchema.extend({
     type: z.literal("start_match"),
+  }),
+  ClientEnvelopeSchema.extend({
+    type: z.literal("restart_match"),
+  }),
+  ClientEnvelopeSchema.extend({
+    type: z.literal("return_to_lobby"),
   }),
   ClientEnvelopeSchema.extend({
     type: z.literal("cast_skill"),
@@ -41,6 +68,15 @@ export const ClientMessageSchema = z.discriminatedUnion("type", [
   ClientEnvelopeSchema.extend({
     type: z.literal("select_upgrade"),
     upgradeId: z.string().min(1).max(96),
+  }),
+  ClientEnvelopeSchema.extend({
+    type: z.literal("override_decision"),
+    decisionId: SafeIdSchema,
+    choiceId: SafeIdSchema,
+  }),
+  ClientEnvelopeSchema.extend({
+    type: z.literal("rescue_player"),
+    targetPlayerId: SafeIdSchema,
   }),
   ClientEnvelopeSchema.extend({
     type: z.literal("sync_request"),
@@ -78,6 +114,54 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("enemy_defeated"), enemyId: SafeIdSchema }),
   z.object({ type: z.literal("wave_spawned"), waveIndex: z.number().int().nonnegative() }),
   z.object({
+    type: z.literal("decision_opened"),
+    decision: ActiveDecisionSchema,
+  }),
+  z.object({
+    type: z.literal("decision_overridden"),
+    playerId: SafeIdSchema,
+    decisionId: SafeIdSchema,
+    choiceId: SafeIdSchema,
+  }),
+  z.object({
+    type: z.literal("decision_resolved"),
+    decision: DecisionSummarySchema,
+  }),
+  z.object({
+    type: z.literal("retreat_decided"),
+    policy: RetreatPolicySchema,
+    reason: z.string().min(1).max(96),
+    averageHpPercent: z.number().int().nonnegative().max(100),
+  }),
+  z.object({
+    type: z.literal("player_downed"),
+    playerId: SafeIdSchema,
+    rescueDeadlineMs: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal("rescue_started"),
+    rescuerId: SafeIdSchema,
+    targetId: SafeIdSchema,
+  }),
+  z.object({
+    type: z.literal("player_rescued"),
+    rescuerId: SafeIdSchema,
+    targetId: SafeIdSchema,
+    hp: z.number().int().positive(),
+  }),
+  z.object({
+    type: z.literal("player_eliminated"),
+    playerId: SafeIdSchema,
+  }),
+  z.object({
+    type: z.literal("equipment_changed"),
+    playerId: SafeIdSchema,
+    weaponId: SafeIdSchema.nullable(),
+    armorId: SafeIdSchema.nullable(),
+    accessoryId: SafeIdSchema.nullable(),
+    synergyIds: z.array(SafeIdSchema).max(16),
+  }),
+  z.object({
     type: z.literal("upgrade_choices_created"),
     playerId: SafeIdSchema,
     choices: z.array(z.string().min(1).max(96)).max(3),
@@ -88,12 +172,13 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
     upgradeId: z.string().min(1).max(96),
   }),
   z.object({
+    type: z.literal("skill_used"),
+    playerId: SafeIdSchema,
+    skillId: z.string().min(1).max(96),
+  }),
+  z.object({
     type: z.literal("match_ended"),
-    result: z.object({
-      outcome: z.enum(["victory", "defeat"]),
-      durationMs: z.number().int().nonnegative(),
-      completedAtTick: z.number().int().nonnegative(),
-    }),
+    result: MatchResultSchema,
   }),
 ]);
 

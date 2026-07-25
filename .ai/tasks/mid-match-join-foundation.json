@@ -1,0 +1,51 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "mid-match-join-foundation",
+  "title": "途中参加のサーバー権威基盤",
+  "objective": "実行中のルームへ新規参加したプレイヤーへ保存済みプロフィールを適用し、パーティー進行度に合わせた決定論的な初期強化を与える基盤を追加する。",
+  "risk": "medium",
+  "constraints": [
+    "AGENTS.mdの規約を維持する",
+    "明示的な型安全性の回避を追加しない"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "ロビー参加と再接続の挙動を壊さず、実行中の新規参加を受理して同じルームのスナップショットへ追加する",
+      "verification": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-2",
+      "description": "途中参加時のロードアウトと自動方針は保存プロフィールをサーバー側で検証・適用し、クライアントのhelloだけで上書きできない",
+      "verification": "npm run test --workspace @discord-hero/activity && npm run check:no-any"
+    },
+    {
+      "id": "AC-3",
+      "description": "途中参加者のレベルと遠征強化は既存パーティーの平均レベルから決定論的に生成され、同一状態・同一入力で一致する",
+      "verification": "npm run test --workspace @discord-hero/game-core"
+    },
+    {
+      "id": "AC-4",
+      "description": "プロトコル互換性、保存スナップショット、仕様ドキュメント、エラー処理を維持する",
+      "verification": "npm run check:architecture && npm run typecheck && npm run build"
+    }
+  ],
+  "requiredChecks": [
+    "typecheck",
+    "test",
+    "build"
+  ],
+  "allowedPaths": [
+    "apps/**",
+    "packages/**",
+    "docs/**",
+    "scripts/**",
+    ".ai/**",
+    "README.md"
+  ],
+  "forbiddenPaths": [
+    ".github/workflows/deploy-production.yml"
+  ],
+  "notes": "必要に応じて変更理由、互換性、運用上の注意を記載する。"
+}

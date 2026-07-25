@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { GameContent } from "../src/content.js";
 import type { GameState } from "../src/types.js";
-import { applyCommand, cloneState, createGame, stepGame } from "../src/engine.js";
+import {
+  applyCommand,
+  cloneState,
+  createGame,
+  RESCUE_ACTION_DURATION_MS,
+  RESCUE_WINDOW_DURATION_MS,
+  stepGame,
+} from "../src/engine.js";
 import { actionId, matchId, playerId } from "../src/ids.js";
 
 const content: GameContent = {
@@ -14,6 +21,7 @@ const content: GameContent = {
       attackPower: 10,
       attackIntervalMs: 100,
       skillIds: ["guardian.hit"],
+      equipmentIds: [],
     },
     ranger: {
       id: "ranger",
@@ -21,6 +29,7 @@ const content: GameContent = {
       attackPower: 10,
       attackIntervalMs: 100,
       skillIds: ["ranger.hit"],
+      equipmentIds: [],
     },
     mage: {
       id: "mage",
@@ -28,6 +37,7 @@ const content: GameContent = {
       attackPower: 10,
       attackIntervalMs: 100,
       skillIds: ["mage.hit"],
+      equipmentIds: [],
     },
     support: {
       id: "support",
@@ -35,6 +45,7 @@ const content: GameContent = {
       attackPower: 10,
       attackIntervalMs: 100,
       skillIds: ["support.heal"],
+      equipmentIds: [],
     },
   },
   skills: {
@@ -63,6 +74,8 @@ const content: GameContent = {
       effect: { type: "heal_all", power: 25 },
     },
   },
+  equipment: {},
+  equipmentSynergies: {},
   enemies: {
     target: {
       id: "target",
@@ -80,15 +93,83 @@ const content: GameContent = {
     "tempo.training": { id: "tempo.training", skillCooldownMultiplier: 0.9 },
     "team.restoration": { id: "team.restoration", healingMultiplier: 1.2 },
   },
+  rewardPolicy: {
+    currencyBaseByOutcome: { victory: 100, return: 50, defeat: 10 },
+    experienceBaseByOutcome: { victory: 80, return: 30, defeat: 5 },
+    currencyPerWave: 10,
+    currencyPerScore: 0.1,
+    experiencePerWave: 15,
+    experiencePerEnemyDefeated: 3,
+  },
   stage: {
     id: "test-stage",
     waves: [{ enemyDefinitionIds: ["target"] }],
   },
 };
 
-function createStartedGame(): GameState {
+const decisionContent: GameContent = {
+  ...content,
+  stage: {
+    ...content.stage,
+    waves: [...content.stage.waves, { enemyDefinitionIds: ["target"] }],
+    decisions: [
+      {
+        id: "first-route",
+        kind: "route",
+        choices: [
+          { id: "safe-route", kind: "safe", risk: 5, reward: 20 },
+          { id: "risky-route", kind: "risky", risk: 50, reward: 100 },
+        ],
+      },
+    ],
+  },
+};
+
+const equipmentContent: GameContent = {
+  ...content,
+  classes: {
+    ...content.classes,
+    guardian: {
+      ...content.classes.guardian,
+      equipmentIds: ["weapon.test", "armor.test", "accessory.test"],
+    },
+  },
+  equipment: {
+    "weapon.test": {
+      id: "weapon.test",
+      slot: "weapon",
+      allowedClassIds: ["guardian"],
+      tags: ["barrier"],
+      effects: [{ type: "attack_power_bonus", amount: 5 }],
+    },
+    "armor.test": {
+      id: "armor.test",
+      slot: "armor",
+      allowedClassIds: ["guardian"],
+      tags: ["plate"],
+      effects: [{ type: "max_hp_bonus", amount: 20 }],
+    },
+    "accessory.test": {
+      id: "accessory.test",
+      slot: "accessory",
+      allowedClassIds: ["guardian"],
+      tags: ["resonant"],
+      effects: [{ type: "skill_cooldown_multiplier", multiplier: 0.8 }],
+    },
+  },
+  equipmentSynergies: {
+    "synergy.test": {
+      id: "synergy.test",
+      requiredEquipmentTags: ["barrier"],
+      requiredSkillIds: ["guardian.hit"],
+      effects: [{ type: "shield_on_wave", amount: 7 }],
+    },
+  },
+};
+
+function createStartedGame(gameContent: GameContent = content): GameState {
   const id = playerId("player-1");
-  let state = createGame({ matchId: matchId("match-1"), seed: "seed", content });
+  let state = createGame({ matchId: matchId("match-1"), seed: "seed", content: gameContent });
   state = applyCommand(
     state,
     {
@@ -98,7 +179,7 @@ function createStartedGame(): GameState {
       displayName: "Player",
       classId: "guardian",
     },
-    content,
+    gameContent,
   ).state;
   state = applyCommand(
     state,
@@ -108,7 +189,7 @@ function createStartedGame(): GameState {
       playerId: id,
       ready: true,
     },
-    content,
+    gameContent,
   ).state;
   state = applyCommand(
     state,
@@ -117,9 +198,51 @@ function createStartedGame(): GameState {
       actionId: actionId("start-1"),
       playerId: id,
     },
-    content,
+    gameContent,
   ).state;
   return state;
+}
+
+function createStartedParty(gameContent: GameContent = content): GameState {
+  let state = createGame({
+    matchId: matchId("party-match"),
+    seed: "party-seed",
+    content: gameContent,
+  });
+  for (const [index, id] of ["player-1", "player-2"].entries()) {
+    state = applyCommand(
+      state,
+      {
+        type: "join_player",
+        actionId: actionId(`party-join-${index}`),
+        playerId: playerId(id),
+        displayName: `Player ${index + 1}`,
+        classId: index === 0 ? "guardian" : "support",
+      },
+      gameContent,
+    ).state;
+  }
+  for (const [index, id] of ["player-1", "player-2"].entries()) {
+    state = applyCommand(
+      state,
+      {
+        type: "set_ready",
+        actionId: actionId(`party-ready-${index}`),
+        playerId: playerId(id),
+        ready: true,
+      },
+      gameContent,
+    ).state;
+  }
+  return applyCommand(
+    state,
+    {
+      type: "start_match",
+      actionId: actionId("party-start"),
+      playerId: playerId("player-1"),
+    },
+    gameContent,
+  ).state;
 }
 
 describe("game engine", () => {
@@ -241,6 +364,7 @@ describe("game engine", () => {
     expect(state.status).toBe("victory");
     expect(state.result?.outcome).toBe("victory");
     expect(state.result?.durationMs).toBe(state.elapsedMs);
+    expect(state.result?.rewards["player-1"]).toEqual({ currency: 113, experience: 98 });
   });
 
   it("bounds the remembered action identifier window", () => {
@@ -273,5 +397,394 @@ describe("game engine", () => {
 
     expect(state.processedActionIds).toHaveLength(512);
     expect(state.processedActionIds.at(-1)).toBe("ready-599");
+  });
+
+  it("applies automatic skills and growth without waiting for player input", () => {
+    const state = createStartedGame();
+    const result = stepGame(state, 100, content);
+    const player = result.state.players["player-1"];
+
+    expect(result.events.some((event) => event.type === "skill_used")).toBe(true);
+    expect(result.events.some((event) => event.type === "upgrade_selected")).toBe(true);
+    expect(player?.level).toBeGreaterThan(1);
+    expect(player?.pendingUpgradeChoices).toEqual([]);
+  });
+
+  it("stores automation policy changes only in the lobby", () => {
+    const state = createStartedGame();
+    const player = playerId("player-1");
+    const result = applyCommand(
+      state,
+      {
+        type: "set_automation_policy",
+        actionId: actionId("policy-1"),
+        playerId: player,
+        policy: { growth: "survival", progress: "safe", retreat: "early", rescue: "priority" },
+      },
+      content,
+    );
+
+    expect(result.accepted).toBe(false);
+    expect(result.errorCode).toBe("match_already_started");
+
+    let lobby = createGame({ matchId: matchId("policy-lobby"), seed: "policy", content });
+    lobby = applyCommand(
+      lobby,
+      {
+        type: "join_player",
+        actionId: actionId("policy-join"),
+        playerId: player,
+        displayName: "Player",
+        classId: "guardian",
+      },
+      content,
+    ).state;
+    const accepted = applyCommand(
+      lobby,
+      {
+        type: "set_automation_policy",
+        actionId: actionId("policy-accepted"),
+        playerId: player,
+        policy: { growth: "survival", progress: "safe", retreat: "early", rescue: "priority" },
+      },
+      content,
+    );
+
+    expect(accepted.accepted).toBe(true);
+    expect(accepted.state.players[player]?.automation).toEqual({
+      growth: "survival",
+      progress: "safe",
+      retreat: "early",
+      rescue: "priority",
+    });
+  });
+
+  it("resolves route decisions from automation policies deterministically", () => {
+    const first = stepGame(createStartedGame(decisionContent), 4_000, decisionContent).state;
+    const second = stepGame(createStartedGame(decisionContent), 4_000, decisionContent).state;
+
+    expect(first).toEqual(second);
+    expect(first.decisionIndex).toBe(1);
+    expect(first.lastDecision).toEqual({
+      kind: "route",
+      decisionId: "first-route",
+      choiceId: "risky-route",
+      risk: 50,
+      reward: 100,
+      voterCount: 1,
+      totalVoters: 1,
+      policy: "balanced",
+    });
+    expect(first.players["player-1"]?.score).toBe(130);
+  });
+
+  it("returns the party instead of declaring defeat when the retreat policy triggers", () => {
+    const state = createStartedGame(decisionContent);
+    const player = state.players["player-1"];
+    if (player === undefined) {
+      throw new Error("Expected player to exist");
+    }
+    player.hp = 20;
+
+    const result = stepGame(state, 4_000, decisionContent);
+
+    expect(result.state.status).toBe("return");
+    expect(result.state.result?.outcome).toBe("return");
+    expect(result.events).toContainEqual({
+      type: "retreat_decided",
+      policy: "standard",
+      reason: "health_threshold",
+      averageHpPercent: 20,
+    });
+  });
+
+  it("allows an explicit decision override without creating an input wait", () => {
+    const state = createStartedGame(decisionContent);
+    const result = applyCommand(
+      state,
+      {
+        type: "override_decision",
+        actionId: actionId("decision-override"),
+        playerId: playerId("player-1"),
+        decisionId: "first-route",
+        choiceId: "safe-route",
+      },
+      decisionContent,
+    );
+
+    expect(result.accepted).toBe(true);
+    expect(result.state.activeDecision).toBeNull();
+    expect(result.state.lastDecision?.choiceId).toBe("safe-route");
+    expect(result.events.some((event) => event.type === "decision_overridden")).toBe(true);
+    expect(result.events.some((event) => event.type === "decision_resolved")).toBe(true);
+    expect(result.events.some((event) => event.type === "wave_spawned")).toBe(true);
+  });
+
+  it("validates and preserves a lobby skill loadout", () => {
+    let state = createGame({ matchId: matchId("loadout"), seed: "loadout", content });
+    const id = playerId("player-1");
+    state = applyCommand(
+      state,
+      {
+        type: "join_player",
+        actionId: actionId("loadout-join"),
+        playerId: id,
+        displayName: "Player",
+        classId: "guardian",
+      },
+      content,
+    ).state;
+    const invalid = applyCommand(
+      state,
+      {
+        type: "set_loadout",
+        actionId: actionId("loadout-invalid"),
+        playerId: id,
+        activeSkillIds: ["mage.hit"],
+      },
+      content,
+    );
+    expect(invalid.accepted).toBe(false);
+    expect(invalid.errorCode).toBe("skill_not_available");
+
+    const accepted = applyCommand(
+      state,
+      {
+        type: "set_loadout",
+        actionId: actionId("loadout-valid"),
+        playerId: id,
+        activeSkillIds: ["guardian.hit"],
+      },
+      content,
+    );
+    expect(accepted.accepted).toBe(true);
+    expect(accepted.state.players[id]?.loadout.activeSkillIds).toEqual(["guardian.hit"]);
+  });
+
+  it("applies authoritative equipment effects and skill synergies", () => {
+    let state = createGame({
+      matchId: matchId("equipment"),
+      seed: "equipment-seed",
+      content: equipmentContent,
+    });
+    const id = playerId("player-1");
+    state = applyCommand(
+      state,
+      {
+        type: "join_player",
+        actionId: actionId("equipment-join"),
+        playerId: id,
+        displayName: "Player",
+        classId: "guardian",
+      },
+      equipmentContent,
+    ).state;
+
+    const initialPlayer = state.players[id];
+    expect(initialPlayer?.loadout).toEqual({
+      activeSkillIds: ["guardian.hit"],
+      weaponId: "weapon.test",
+      armorId: "armor.test",
+      accessoryId: "accessory.test",
+    });
+    expect(initialPlayer?.attackPower).toBe(15);
+    expect(initialPlayer?.maxHp).toBe(120);
+    expect(initialPlayer?.skillCooldownMultiplier).toBe(0.8);
+    expect(initialPlayer?.activeSynergyIds).toEqual(["synergy.test"]);
+
+    const equipment = applyCommand(
+      state,
+      {
+        type: "set_equipment",
+        actionId: actionId("equipment-set"),
+        playerId: id,
+        weaponId: null,
+        armorId: "armor.test",
+        accessoryId: "accessory.test",
+      },
+      equipmentContent,
+    );
+    expect(equipment.accepted).toBe(true);
+    expect(equipment.events).toContainEqual({
+      type: "equipment_changed",
+      playerId: id,
+      weaponId: null,
+      armorId: "armor.test",
+      accessoryId: "accessory.test",
+      synergyIds: [],
+    });
+    expect(equipment.state.players[id]?.attackPower).toBe(10);
+    expect(equipment.state.players[id]?.maxHp).toBe(120);
+
+    const invalidSlot = applyCommand(
+      state,
+      {
+        type: "set_equipment",
+        actionId: actionId("equipment-invalid-slot"),
+        playerId: id,
+        weaponId: "armor.test",
+        armorId: "armor.test",
+        accessoryId: "accessory.test",
+      },
+      equipmentContent,
+    );
+    expect(invalidSlot.accepted).toBe(false);
+    expect(invalidSlot.errorCode).toBe("equipment_slot_mismatch");
+
+    const ready = applyCommand(
+      state,
+      { type: "set_ready", actionId: actionId("equipment-ready"), playerId: id, ready: true },
+      equipmentContent,
+    ).state;
+    const started = applyCommand(
+      ready,
+      { type: "start_match", actionId: actionId("equipment-start"), playerId: id },
+      equipmentContent,
+    );
+    expect(started.accepted).toBe(true);
+    expect(started.state.players[id]?.shield).toBe(7);
+    const waveState = started.state;
+    const withSynergy = applyCommand(
+      waveState,
+      {
+        type: "set_equipment",
+        actionId: actionId("equipment-late"),
+        playerId: id,
+        weaponId: "weapon.test",
+        armorId: "armor.test",
+        accessoryId: "accessory.test",
+      },
+      equipmentContent,
+    );
+    expect(withSynergy.accepted).toBe(false);
+    expect(withSynergy.errorCode).toBe("match_already_started");
+  });
+
+  it("turns lethal damage into a rescue window before defeat", () => {
+    const targetEnemy = content.enemies["target"];
+    if (targetEnemy === undefined) {
+      throw new Error("Expected target enemy to exist");
+    }
+    const dangerousContent: GameContent = {
+      ...content,
+      enemies: {
+        target: {
+          ...targetEnemy,
+          maxHp: 1_000,
+          attackPower: 200,
+          attackIntervalMs: 100,
+        },
+      },
+    };
+    const result = stepGame(createStartedGame(dangerousContent), 100, dangerousContent);
+    const player = result.state.players["player-1"];
+
+    expect(player?.downed).toBe(true);
+    expect(player?.eliminated).toBe(false);
+    expect(player?.rescueDeadlineMs).toBe(result.state.elapsedMs + RESCUE_WINDOW_DURATION_MS);
+    expect(result.events).toContainEqual({
+      type: "player_downed",
+      playerId: "player-1",
+      rescueDeadlineMs: result.state.elapsedMs + RESCUE_WINDOW_DURATION_MS,
+    });
+    expect(result.state.status).toBe("defeat");
+  });
+
+  it("auto-rescues a downed teammate and restricts the rescuer during the action", () => {
+    const state = createStartedParty();
+    const target = state.players["player-2"];
+    if (target === undefined) {
+      throw new Error("Expected rescue target to exist");
+    }
+    target.hp = 0;
+    target.downed = true;
+    target.downedAtMs = state.elapsedMs;
+    target.rescueDeadlineMs = state.elapsedMs + RESCUE_WINDOW_DURATION_MS;
+
+    const result = stepGame(state, RESCUE_ACTION_DURATION_MS, content);
+    const rescuer = result.state.players["player-1"];
+    const rescued = result.state.players["player-2"];
+
+    expect(result.events).toContainEqual({
+      type: "rescue_started",
+      rescuerId: "player-1",
+      targetId: "player-2",
+    });
+    expect(result.events).toContainEqual({
+      type: "player_rescued",
+      rescuerId: "player-1",
+      targetId: "player-2",
+      hp: 35,
+    });
+    expect(rescued?.downed).toBe(false);
+    expect(rescued?.hp).toBe(60);
+    expect(rescuer?.rescueTargetId).toBeNull();
+    expect(rescuer?.rescueCooldownMs).toBe(4_000);
+  });
+
+  it("accepts manual rescue and rejects attacks while rescue is in progress", () => {
+    const state = createStartedParty();
+    const target = state.players["player-2"];
+    if (target === undefined) {
+      throw new Error("Expected rescue target to exist");
+    }
+    target.hp = 0;
+    target.downed = true;
+    target.downedAtMs = state.elapsedMs;
+    target.rescueDeadlineMs = state.elapsedMs + RESCUE_WINDOW_DURATION_MS;
+
+    const rescue = applyCommand(
+      state,
+      {
+        type: "rescue_player",
+        actionId: actionId("manual-rescue"),
+        playerId: playerId("player-1"),
+        targetPlayerId: playerId("player-2"),
+      },
+      content,
+    );
+    expect(rescue.accepted).toBe(true);
+    expect(rescue.events).toContainEqual({
+      type: "rescue_started",
+      rescuerId: "player-1",
+      targetId: "player-2",
+    });
+
+    const blockedSkill = applyCommand(
+      rescue.state,
+      {
+        type: "cast_skill",
+        actionId: actionId("skill-during-rescue"),
+        playerId: playerId("player-1"),
+        skillId: "guardian.hit",
+      },
+      content,
+    );
+    expect(blockedSkill.accepted).toBe(false);
+    expect(blockedSkill.errorCode).toBe("rescue_in_progress");
+  });
+
+  it("expires an unrescued player and keeps the result deterministic", () => {
+    const first = createStartedGame();
+    const player = first.players["player-1"];
+    if (player === undefined) {
+      throw new Error("Expected player to exist");
+    }
+    player.hp = 0;
+    player.downed = true;
+    player.downedAtMs = first.elapsedMs;
+    player.rescueDeadlineMs = first.elapsedMs + RESCUE_WINDOW_DURATION_MS;
+
+    const second = cloneState(first);
+    const firstResult = stepGame(first, RESCUE_WINDOW_DURATION_MS, content);
+    const secondResult = stepGame(second, RESCUE_WINDOW_DURATION_MS, content);
+
+    expect(firstResult.state).toEqual(secondResult.state);
+    expect(firstResult.state.players["player-1"]?.eliminated).toBe(true);
+    expect(firstResult.events).toContainEqual({
+      type: "player_eliminated",
+      playerId: "player-1",
+    });
+    expect(firstResult.state.status).toBe("defeat");
   });
 });

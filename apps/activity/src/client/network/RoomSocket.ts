@@ -5,7 +5,11 @@ import {
   RoomTicketResponseSchema,
   parseServerMessage,
   type ClientMessage,
+  type GrowthPolicyDto,
   type HeroClassIdDto,
+  type ProgressPolicyDto,
+  type RescuePolicyDto,
+  type RetreatPolicyDto,
   type ServerMessage,
 } from "@discord-hero/protocol";
 import { postJson } from "../api/http.js";
@@ -23,9 +27,33 @@ export interface RoomSocketCallbacks {
 type ReliableIntent =
   | { readonly type: "set_ready"; readonly ready: boolean }
   | { readonly type: "select_class"; readonly classId: HeroClassIdDto }
+  | { readonly type: "restart_match" }
+  | { readonly type: "return_to_lobby" }
+  | {
+      readonly type: "set_automation_policy";
+      readonly policy: {
+        readonly growth: GrowthPolicyDto;
+        readonly progress: ProgressPolicyDto;
+        readonly retreat: RetreatPolicyDto;
+        readonly rescue: RescuePolicyDto;
+      };
+    }
+  | { readonly type: "set_loadout"; readonly activeSkillIds: string[] }
+  | {
+      readonly type: "set_equipment";
+      readonly weaponId: string | null;
+      readonly armorId: string | null;
+      readonly accessoryId: string | null;
+    }
   | { readonly type: "start_match" }
   | { readonly type: "cast_skill"; readonly skillId: string }
-  | { readonly type: "select_upgrade"; readonly upgradeId: string };
+  | { readonly type: "select_upgrade"; readonly upgradeId: string }
+  | {
+      readonly type: "override_decision";
+      readonly decisionId: string;
+      readonly choiceId: string;
+    }
+  | { readonly type: "rescue_player"; readonly targetPlayerId: string };
 
 const MAX_PENDING_COMMANDS = 128;
 
@@ -62,8 +90,37 @@ export class RoomSocket {
     this.sendReliable({ type: "select_class", classId });
   }
 
+  public setAutomationPolicy(policy: {
+    readonly growth: GrowthPolicyDto;
+    readonly progress: ProgressPolicyDto;
+    readonly retreat: RetreatPolicyDto;
+    readonly rescue: RescuePolicyDto;
+  }): void {
+    this.sendReliable({ type: "set_automation_policy", policy });
+  }
+
+  public setLoadout(activeSkillIds: readonly string[]): void {
+    this.sendReliable({ type: "set_loadout", activeSkillIds: [...activeSkillIds] });
+  }
+
+  public setEquipment(
+    weaponId: string | null,
+    armorId: string | null,
+    accessoryId: string | null,
+  ): void {
+    this.sendReliable({ type: "set_equipment", weaponId, armorId, accessoryId });
+  }
+
   public startMatch(): void {
     this.sendReliable({ type: "start_match" });
+  }
+
+  public restartMatch(): void {
+    this.sendReliable({ type: "restart_match" });
+  }
+
+  public returnToLobby(): void {
+    this.sendReliable({ type: "return_to_lobby" });
   }
 
   public castSkill(skillId: string): void {
@@ -72,6 +129,14 @@ export class RoomSocket {
 
   public selectUpgrade(upgradeId: string): void {
     this.sendReliable({ type: "select_upgrade", upgradeId });
+  }
+
+  public overrideDecision(decisionId: string, choiceId: string): void {
+    this.sendReliable({ type: "override_decision", decisionId, choiceId });
+  }
+
+  public rescuePlayer(targetPlayerId: string): void {
+    this.sendReliable({ type: "rescue_player", targetPlayerId });
   }
 
   public close(): void {

@@ -145,7 +145,7 @@ export class RoomRepository {
     matchStartedAt: string | null,
     roomId: string | null,
   ): Promise<RoomRecoveryFailure | null> {
-    if (game.status !== "victory" && game.status !== "defeat") {
+    if (game.status !== "victory" && game.status !== "defeat" && game.status !== "return") {
       return null;
     }
     const resultKey = `${RESULT_QUEUED_PREFIX}${game.matchId}`;
