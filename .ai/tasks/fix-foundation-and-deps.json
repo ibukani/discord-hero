@@ -1,0 +1,28 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "fix-foundation-and-deps",
+  "title": "Fix project foundation check script, tsconfig worker setup, and typescript eslint compatibility",
+  "objective": "Resolve npm run check failures by excluding worker-configuration.d.ts in check-no-any, adding worker-configuration.d.ts to activity tsconfig worker include, updating typescript dependency for eslint compatibility, and fixing vulnerabilities.",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "npm run check passes cleanly without errors",
+      "verification": "npm run check"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": [
+    "apps/**",
+    "packages/**",
+    "docs/**",
+    "scripts/**",
+    ".ai/**",
+    "package.json",
+    "package-lock.json"
+  ],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "Fixes check-no-any, tsconfig worker, and typescript/eslint compatibility."
+}

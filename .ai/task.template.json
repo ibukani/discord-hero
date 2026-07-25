@@ -1,0 +1,20 @@
+{
+  "$schema": "./task.schema.json",
+  "schemaVersion": 1,
+  "id": "example-task",
+  "title": "具体的な変更内容を記述する",
+  "objective": "利用者に提供する結果と、変更後に成立しているべき状態を具体的に記述する。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "目的に記載した振る舞いが自動テストで確認できる",
+      "verification": "npm run agent:verify"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": ["apps/**", "packages/**", "docs/**", "scripts/**", ".ai/**"],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "必要に応じて変更理由、互換性、運用上の注意を記載する。"
+}

@@ -1,0 +1,68 @@
+{
+  "name": "discord-hero",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "npm@10.9.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run db:migrate:local && npm run dev:activity",
+    "build": "npm run build --workspace @discord-hero/game-core && npm run build --workspace @discord-hero/content && npm run build --workspace @discord-hero/protocol && npm run build --workspace @discord-hero/assets && npm run build --workspace @discord-hero/test-kit && npm run build --workspace @discord-hero/activity",
+    "typecheck": "npm run typecheck --workspace @discord-hero/game-core && npm run typecheck --workspace @discord-hero/content && npm run typecheck --workspace @discord-hero/protocol && npm run typecheck --workspace @discord-hero/assets && npm run typecheck --workspace @discord-hero/test-kit && npm run typecheck --workspace @discord-hero/activity",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/content && npm run test --workspace @discord-hero/protocol && npm run test --workspace @discord-hero/assets && npm run test --workspace @discord-hero/test-kit && npm run test --workspace @discord-hero/activity",
+    "check:no-any": "node scripts/check-no-any.mjs",
+    "check": "npm run check:no-any && npm run check:architecture && npm run check:task-contract && npm run check:task-scope && npm run check:repo-map && npm run assets:validate && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
+    "cf:typegen": "npm run cf:typegen --workspace @discord-hero/activity",
+    "dev:activity": "npm run dev --workspace @discord-hero/activity",
+    "db:migrate:local": "npm run db:migrate:local --workspace @discord-hero/activity",
+    "db:migrate:staging": "npm run db:migrate:staging --workspace @discord-hero/activity",
+    "db:migrate:production": "npm run db:migrate:production --workspace @discord-hero/activity",
+    "deploy:staging": "npm run deploy:staging --workspace @discord-hero/activity",
+    "deploy:production": "npm run deploy:production --workspace @discord-hero/activity",
+    "check:architecture": "node scripts/agent/check-architecture.mjs",
+    "check:task-contract": "node scripts/agent/validate-task.mjs --all",
+    "check:repo-map": "node scripts/agent/generate-repo-map.mjs --check",
+    "agent:task": "node scripts/agent/create-task.mjs",
+    "agent:map": "node scripts/agent/generate-repo-map.mjs",
+    "agent:map:check": "node scripts/agent/generate-repo-map.mjs --check",
+    "agent:inspect": "node scripts/agent/inspect.mjs",
+    "agent:smoke": "npm run test --workspace @discord-hero/test-kit",
+    "agent:verify": "node scripts/agent/verify.mjs",
+    "agent:verify:static": "node scripts/agent/verify.mjs --static-only",
+    "check:task-scope": "node scripts/agent/check-task-scope.mjs",
+    "agent:harness:self-test": "node scripts/agent/self-test.mjs",
+    "assets:install": "node scripts/assets/install.mjs",
+    "assets:sync": "node scripts/assets/sync.mjs",
+    "assets:prepare": "node scripts/assets/prepare.mjs",
+    "assets:prepare:local": "node scripts/assets/prepare.mjs --mode local",
+    "assets:prepare:staging": "node scripts/assets/prepare.mjs --mode staging",
+    "assets:prepare:production": "node scripts/assets/prepare.mjs --mode production",
+    "assets:validate": "node scripts/assets/validate.mjs",
+    "assets:list": "node scripts/assets/list.mjs",
+    "assets:clean": "node scripts/assets/clean.mjs",
+    "assets:pack": "node scripts/assets/create-pack.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "@types/node": "26.1.1",
+    "eslint": "9.39.1",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "16.3.0",
+    "prettier": "3.9.6",
+    "typescript": "5.8.2",
+    "typescript-eslint": "8.64.0",
+    "fflate": "0.8.2"
+  },
+  "overrides": {
+    "brace-expansion": "2.0.1"
+  }
+}

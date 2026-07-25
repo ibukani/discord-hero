@@ -1,0 +1,2 @@
+# Put large redistributable source assets in this directory when Git LFS is desired.
+assets/repository-lfs/** filter=lfs diff=lfs merge=lfs -text

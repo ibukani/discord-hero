@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      cloudflare:
+        patterns:
+          - "@cloudflare/*"
+          - "wrangler"
+      frontend:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+          - "vite"
+          - "@vitejs/*"
+          - "pixi.js"
+      quality:
+        patterns:
+          - "eslint*"
+          - "typescript-eslint"
+          - "prettier"
+          - "vitest"

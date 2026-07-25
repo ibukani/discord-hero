@@ -1,0 +1,145 @@
+{
+  "$schema": "../../asset-pack.schema.json",
+  "schemaVersion": 1,
+  "id": "kenney-ui-pack-pixel-adventure",
+  "version": "2.0",
+  "displayName": "UI Pack - Pixel Adventure",
+  "description": "Kenney Pixel Adventure UI Pack (500+ pixel UI assets, tiles, frames, buttons, and icons).",
+  "environments": ["local", "staging", "production"],
+  "required": false,
+  "ownership": "third-party",
+  "license": {
+    "name": "CC0 1.0 Universal",
+    "spdx": "CC0-1.0",
+    "sourceUrl": "https://kenney.nl/assets/ui-pack-pixel-adventure",
+    "redistribution": "allowed",
+    "modification": "allowed",
+    "repositoryPolicy": "allowed",
+    "deploymentPolicy": "allowed",
+    "attributionRequired": false,
+    "attributionText": "UI Pack - Pixel Adventure by Kenney (www.kenney.nl)",
+    "notes": "Creative Commons Zero, CC0 1.0 Universal. Public Domain Dedication."
+  },
+  "source": {
+    "kind": "repository",
+    "directory": "assets/repository/kenney-ui-pack-pixel-adventure"
+  },
+  "delivery": {
+    "kind": "bundle",
+    "publicPath": "kenney-ui-pack-pixel-adventure"
+  },
+  "files": [
+    {
+      "id": "kenney.ui.tilemap-large",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tilemap-large.png",
+      "outputPath": "tilemaps/large.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 428,
+          "height": 230
+        }
+      }
+    },
+    {
+      "id": "kenney.ui.tilemap-small",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tilemap-small.png",
+      "outputPath": "tilemaps/small.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 390,
+          "height": 118
+        }
+      }
+    },
+    {
+      "id": "kenney.ui.tile-0000",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tiles/large/tile_0000.png",
+      "outputPath": "tiles/large/tile_0000.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "id": "kenney.ui.tile-0001",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tiles/large/tile_0001.png",
+      "outputPath": "tiles/large/tile_0001.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "id": "kenney.ui.tile-0002",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tiles/large/tile_0002.png",
+      "outputPath": "tiles/large/tile_0002.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "id": "kenney.ui.tile-0003",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tiles/large/tile_0003.png",
+      "outputPath": "tiles/large/tile_0003.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "id": "kenney.ui.tile-0004",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tiles/large/tile_0004.png",
+      "outputPath": "tiles/large/tile_0004.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 32,
+          "height": 32
+        }
+      }
+    },
+    {
+      "id": "kenney.ui.tile-0005",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "tiles/large/tile_0005.png",
+      "outputPath": "tiles/large/tile_0005.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 32,
+          "height": 32
+        }
+      }
+    }
+  ]
+}

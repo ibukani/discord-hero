@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "workspacePrefix": "@discord-hero/",
+  "packages": {
+    "@discord-hero/game-core": {
+      "allowedWorkspaceDependencies": [],
+      "forbiddenImports": [
+        "react",
+        "react-dom",
+        "pixi.js",
+        "@discord/embedded-app-sdk",
+        "cloudflare:test"
+      ],
+      "forbiddenSourcePatterns": [
+        {
+          "label": "wall-clock access",
+          "pattern": "\\bDate\\.now\\s*\\("
+        },
+        {
+          "label": "ambient random access",
+          "pattern": "\\bMath\\.random\\s*\\("
+        },
+        {
+          "label": "ambient UUID generation",
+          "pattern": "\\bcrypto\\.randomUUID\\s*\\("
+        },
+        {
+          "label": "environment access",
+          "pattern": "\\bprocess\\.env\\b"
+        }
+      ]
+    },
+    "@discord-hero/content": {
+      "allowedWorkspaceDependencies": ["@discord-hero/game-core"],
+      "forbiddenImports": ["react", "react-dom", "pixi.js", "@discord/embedded-app-sdk"]
+    },
+    "@discord-hero/protocol": {
+      "allowedWorkspaceDependencies": [],
+      "forbiddenImports": ["react", "react-dom", "pixi.js", "@discord/embedded-app-sdk"]
+    },
+    "@discord-hero/test-kit": {
+      "allowedWorkspaceDependencies": [
+        "@discord-hero/game-core",
+        "@discord-hero/content",
+        "@discord-hero/protocol"
+      ],
+      "forbiddenImports": ["react", "react-dom", "pixi.js", "@discord/embedded-app-sdk"]
+    },
+    "@discord-hero/activity": {
+      "allowedWorkspaceDependencies": [
+        "@discord-hero/game-core",
+        "@discord-hero/content",
+        "@discord-hero/protocol",
+        "@discord-hero/assets"
+      ],
+      "testOnlyWorkspaceDependencies": ["@discord-hero/test-kit"],
+      "forbiddenImports": []
+    },
+    "@discord-hero/assets": {
+      "allowedWorkspaceDependencies": [],
+      "forbiddenImports": [
+        "react",
+        "react-dom",
+        "pixi.js",
+        "@discord/embedded-app-sdk",
+        "cloudflare:test"
+      ]
+    }
+  }
+}

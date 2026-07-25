@@ -1,0 +1,400 @@
+{
+  "$schema": "../../asset-pack.schema.json",
+  "schemaVersion": 1,
+  "id": "tiny-rpg-soldier-orc",
+  "version": "2.0",
+  "displayName": "Tiny RPG Character Asset Pack 01 - Soldier & Orc",
+  "description": "Soldier、Orc、Arrowのピクセルアニメーション。現在はローカル専用アセットとして導入する。",
+  "environments": ["local", "staging", "production"],
+  "required": false,
+  "ownership": "third-party",
+  "license": {
+    "name": "Zerie Tiny RPG Character Asset Pack License",
+    "spdx": null,
+    "sourceUrl": "https://zerie.itch.io/tiny-rpg-character-asset-pack",
+    "redistribution": "prohibited",
+    "modification": "allowed",
+    "repositoryPolicy": "forbidden",
+    "deploymentPolicy": "allowed",
+    "attributionRequired": false,
+    "attributionText": "Tiny RPG Character Asset Pack by Zerie",
+    "notes": "ゲームへの個人・商用利用と改変は許可。素材単体の再配布、再販売、再アップロードは禁止。"
+  },
+  "source": {
+    "kind": "local-archive",
+    "archiveNames": ["Tiny RPG Character Asset Pack 01 v2.0 -Free Soldier&Orc.zip"],
+    "archiveRoot": "Tiny RPG Character Asset Pack 01 v2.0 -Free Soldier&Orc",
+    "sha256": "9f1818c7ddc17b99e4bae81feae8b25a3692bf6bc269bb2797e36bd7faec3ba2"
+  },
+  "delivery": {
+    "kind": "bundle",
+    "publicPath": "tiny-rpg-soldier-orc"
+  },
+  "files": [
+    {
+      "id": "character.soldier.idle",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Soldier/Soldier/Soldier_Idle.png",
+      "outputPath": "characters/soldier/idle.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 600,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 6,
+        "columns": 6,
+        "rows": 1,
+        "frameDurationMs": 180,
+        "loop": true,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.soldier.walk",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Soldier/Soldier/Soldier_Walk.png",
+      "outputPath": "characters/soldier/walk.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 800,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 8,
+        "columns": 8,
+        "rows": 1,
+        "frameDurationMs": 110,
+        "loop": true,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.soldier.attack-1",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Soldier/Soldier/Soldier_Attack01.png",
+      "outputPath": "characters/soldier/attack-1.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 600,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 6,
+        "columns": 6,
+        "rows": 1,
+        "frameDurationMs": 90,
+        "loop": false,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.soldier.attack-2",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Soldier/Soldier/Soldier_Attack02.png",
+      "outputPath": "characters/soldier/attack-2.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 600,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 6,
+        "columns": 6,
+        "rows": 1,
+        "frameDurationMs": 90,
+        "loop": false,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.soldier.attack-3",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Soldier/Soldier/Soldier_Attack03.png",
+      "outputPath": "characters/soldier/attack-3.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 900,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 9,
+        "columns": 9,
+        "rows": 1,
+        "frameDurationMs": 80,
+        "loop": false,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.soldier.hurt",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Soldier/Soldier/Soldier_Hurt.png",
+      "outputPath": "characters/soldier/hurt.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 400,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 4,
+        "columns": 4,
+        "rows": 1,
+        "frameDurationMs": 100,
+        "loop": false,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.soldier.death",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Soldier/Soldier/Soldier_Death.png",
+      "outputPath": "characters/soldier/death.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 400,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 4,
+        "columns": 4,
+        "rows": 1,
+        "frameDurationMs": 150,
+        "loop": false,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.orc.idle",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Orc/Orc/Orc_Idle.png",
+      "outputPath": "characters/orc/idle.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 600,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 6,
+        "columns": 6,
+        "rows": 1,
+        "frameDurationMs": 180,
+        "loop": true,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.orc.walk",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Orc/Orc/Orc_Walk.png",
+      "outputPath": "characters/orc/walk.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 800,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 8,
+        "columns": 8,
+        "rows": 1,
+        "frameDurationMs": 110,
+        "loop": true,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.orc.attack-1",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Orc/Orc/Orc_Attack01.png",
+      "outputPath": "characters/orc/attack-1.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 600,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 6,
+        "columns": 6,
+        "rows": 1,
+        "frameDurationMs": 90,
+        "loop": false,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.orc.attack-2",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Orc/Orc/Orc_Attack02.png",
+      "outputPath": "characters/orc/attack-2.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 600,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 6,
+        "columns": 6,
+        "rows": 1,
+        "frameDurationMs": 90,
+        "loop": false,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.orc.hurt",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Orc/Orc/Orc_Hurt.png",
+      "outputPath": "characters/orc/hurt.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 400,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 4,
+        "columns": 4,
+        "rows": 1,
+        "frameDurationMs": 100,
+        "loop": false,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "character.orc.death",
+      "kind": "sprite-sheet",
+      "mediaType": "image/png",
+      "sourcePath": "Characters(100x100 split)/Orc/Orc/Orc_Death.png",
+      "outputPath": "characters/orc/death.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 400,
+          "height": 100
+        }
+      },
+      "spriteSheet": {
+        "frameWidth": 100,
+        "frameHeight": 100,
+        "frameCount": 4,
+        "columns": 4,
+        "rows": 1,
+        "frameDurationMs": 150,
+        "loop": false,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.62
+        }
+      }
+    },
+    {
+      "id": "projectile.arrow",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "Arrow(Projectile)/Arrow01(100x100).png",
+      "outputPath": "projectiles/arrow.png",
+      "pixelArt": true,
+      "expected": {
+        "image": {
+          "width": 100,
+          "height": 100
+        }
+      }
+    }
+  ]
+}

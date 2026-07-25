@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-fund
+          else
+            npm install --no-fund
+          fi
+      - name: AI harness verification
+        run: npm run agent:verify
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-verification
+          path: .artifacts/agent/
+          if-no-files-found: error

@@ -1,0 +1,53 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "asset-pipeline",
+  "title": "汎用アセット管理基盤を追加する",
+  "objective": "再配布可能・非公開・Git LFS・リモート・外部配信・生成物を同じ型安全なカタログで扱い、Tiny RPG Soldier & Orcをローカル導入してPixiJS描画に利用できる状態にする。",
+  "risk": "medium",
+  "constraints": [
+    "AGENTS.mdの型安全性と依存方向を維持する",
+    "再配布条件が不明または禁止の素材をGit追跡対象にしない",
+    "アセットが存在しない環境でもフォールバック描画で起動可能にする"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "複数の保管元と配信方法を表現できるアセットパックマニフェストが存在する",
+      "verification": "npm run assets:validate"
+    },
+    {
+      "id": "AC-2",
+      "description": "アップロードされたSoldierとOrcのアニメーションがローカルカタログへ生成される",
+      "verification": "npm run assets:prepare:local"
+    },
+    {
+      "id": "AC-3",
+      "description": "PixiJSクライアントがカタログを検証しスプライトを使用し、不在時は従来描画へ戻る",
+      "verification": "npm run typecheck --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-4",
+      "description": "AI検証コマンドがアセットポリシーを検査する",
+      "verification": "npm run agent:verify:static -- .ai/tasks/asset-pipeline.json"
+    }
+  ],
+  "requiredChecks": ["format", "lint", "typecheck", "test", "build"],
+  "allowedPaths": [
+    "assets/**",
+    ".local/**",
+    "apps/**",
+    "packages/**",
+    "scripts/**",
+    "docs/**",
+    ".ai/**",
+    "AGENTS.md",
+    "README.md",
+    "package.json",
+    ".gitignore",
+    ".gitattributes",
+    "eslint.config.js"
+  ],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "現在の第三者アセットはゲームへの組み込みを許可しつつ、素材バイナリのGit追跡と単体再配布を禁止する。"
+}

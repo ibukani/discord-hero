@@ -1,0 +1,144 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "discord-hero-local",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-07-25",
+  "observability": {
+    "enabled": true,
+  },
+  "secrets": {
+    "required": ["DISCORD_CLIENT_SECRET", "SESSION_SIGNING_SECRET"],
+  },
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+  },
+  "vars": {
+    "APP_ENV": "local",
+    "ALLOW_LOCAL_AUTH": "true",
+    "DISCORD_CLIENT_ID": "local-discord-client",
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "GAME_ROOMS",
+        "class_name": "GameRoom",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["GameRoom"],
+    },
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "discord-hero-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "../../migrations",
+    },
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "MATCH_RESULTS_QUEUE",
+        "queue": "discord-hero-results-local",
+      },
+    ],
+    "consumers": [
+      {
+        "queue": "discord-hero-results-local",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "dead_letter_queue": "discord-hero-results-local-dlq",
+      },
+    ],
+  },
+  "env": {
+    "staging": {
+      "name": "discord-hero-staging",
+      "vars": {
+        "APP_ENV": "staging",
+        "ALLOW_LOCAL_AUTH": "false",
+        "DISCORD_CLIENT_ID": "REPLACE_WITH_STAGING_DISCORD_CLIENT_ID",
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "GAME_ROOMS",
+            "class_name": "GameRoom",
+          },
+        ],
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "discord-hero-staging",
+          "database_id": "REPLACE_WITH_STAGING_D1_DATABASE_ID",
+          "migrations_dir": "../../migrations",
+        },
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "MATCH_RESULTS_QUEUE",
+            "queue": "discord-hero-results-staging",
+          },
+        ],
+        "consumers": [
+          {
+            "queue": "discord-hero-results-staging",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5,
+            "max_retries": 5,
+            "dead_letter_queue": "discord-hero-results-staging-dlq",
+          },
+        ],
+      },
+    },
+    "production": {
+      "name": "discord-hero-production",
+      "vars": {
+        "APP_ENV": "production",
+        "ALLOW_LOCAL_AUTH": "false",
+        "DISCORD_CLIENT_ID": "REPLACE_WITH_PRODUCTION_DISCORD_CLIENT_ID",
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "GAME_ROOMS",
+            "class_name": "GameRoom",
+          },
+        ],
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "discord-hero-production",
+          "database_id": "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID",
+          "migrations_dir": "../../migrations",
+        },
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "MATCH_RESULTS_QUEUE",
+            "queue": "discord-hero-results-production",
+          },
+        ],
+        "consumers": [
+          {
+            "queue": "discord-hero-results-production",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5,
+            "max_retries": 5,
+            "dead_letter_queue": "discord-hero-results-production-dlq",
+          },
+        ],
+      },
+    },
+  },
+}

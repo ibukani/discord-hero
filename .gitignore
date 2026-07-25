@@ -1,0 +1,20 @@
+node_modules/
+dist/
+coverage/
+.wrangler/
+.dev.vars
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vscode/settings.json
+
+# AI coding harness reports
+.artifacts/
+
+# Private, purchased, or locally installed asset sources
+.local/assets/
+
+# Deterministic build output generated from asset manifests
+apps/activity/public/assets/generated/

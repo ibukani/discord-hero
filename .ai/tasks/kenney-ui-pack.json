@@ -1,0 +1,44 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "kenney-ui-pack",
+  "title": "Kenney UI Pack - Pixel Adventureを導入しUIをゲーム風に刷新する",
+  "objective": "Kenney UI Pack - Pixel Adventure (CC0) をアセット定義に追加し、Web UIとPixiJS描画の両方に組み込み、ゲームらしい魅力的なピクセルUIを実現する。",
+  "risk": "medium",
+  "constraints": [
+    "AGENTS.mdの型安全性、依存方向、アセットルールを守る",
+    "再配布可能なCC0ライセンス表記を適切に行う",
+    "アセットカタログ非依存でも崩れないレスポンシブなフォールバックUIを維持する"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "Kenney UI Pack - Pixel Adventureのアセットパック定義とリポジトリアセットが存在する",
+      "verification": "npm run assets:validate"
+    },
+    {
+      "id": "AC-2",
+      "description": "アセットカタログにKenney UIのアセットが正しく生成される",
+      "verification": "npm run assets:prepare:local"
+    },
+    {
+      "id": "AC-3",
+      "description": "Web UIとPixiJSコンポーネントが型安全にKenney UI要素およびピクセルゲームCSSを利用できる",
+      "verification": "npm run check"
+    }
+  ],
+  "requiredChecks": ["format", "lint", "typecheck", "test", "build"],
+  "allowedPaths": [
+    "assets/**",
+    ".local/**",
+    "apps/**",
+    "packages/**",
+    "scripts/**",
+    "docs/**",
+    ".ai/**",
+    "AGENTS.md",
+    "README.md",
+    "package.json"
+  ],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"]
+}

@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "name": "Discord Hero",
+    "summary": "Discord Activity向け協力型セミ放置ローグライトRPG",
+    "architecture": "TypeScriptモノレポ、純粋なゲームコア、サーバー権威型Durable Object"
+  },
+  "packages": [
+    {
+      "name": "@discord-hero/game-core",
+      "path": "packages/game-core",
+      "responsibility": "決定論的な戦闘、コマンド、状態遷移、乱数",
+      "entrypoints": ["src/index.ts", "src/engine.ts"],
+      "changeSignals": ["戦闘ルール", "敵AI", "スキル効果", "勝敗判定"]
+    },
+    {
+      "name": "@discord-hero/content",
+      "path": "packages/content",
+      "responsibility": "クラス、スキル、敵、ステージ、強化の定義",
+      "entrypoints": ["src/index.ts", "src/default-content.ts"],
+      "changeSignals": ["バランス調整", "コンテンツ追加"]
+    },
+    {
+      "name": "@discord-hero/protocol",
+      "path": "packages/protocol",
+      "responsibility": "HTTP、WebSocket、永続化境界のZodスキーマと型",
+      "entrypoints": ["src/index.ts", "src/websocket.ts", "src/persistence.ts"],
+      "changeSignals": ["通信形式", "保存形式", "プロトコルバージョン"]
+    },
+    {
+      "name": "@discord-hero/assets",
+      "path": "packages/assets",
+      "responsibility": "実行時アセットカタログの型、Zod検証、スプライト定義",
+      "entrypoints": ["src/index.ts", "src/catalog.ts"],
+      "changeSignals": ["アセットカタログ", "スプライトメタデータ", "アセット境界検証"]
+    },
+    {
+      "name": "@discord-hero/test-kit",
+      "path": "packages/test-kit",
+      "responsibility": "決定論的試合再現、固定時計、型安全なテストデータ",
+      "entrypoints": ["src/index.ts", "src/match-harness.ts"],
+      "changeSignals": ["テスト共通化", "再現シナリオ", "フィクスチャ"]
+    },
+    {
+      "name": "@discord-hero/activity",
+      "path": "apps/activity",
+      "responsibility": "React/PixiJSクライアント、Worker API、Durable Object、D1、Queue",
+      "entrypoints": [
+        "src/client/main.tsx",
+        "src/worker/index.ts",
+        "src/worker/durable-objects/GameRoom.ts"
+      ],
+      "changeSignals": ["画面", "Discord連携", "認証", "ルーム同期", "永続化"]
+    }
+  ],
+  "changeGuides": [
+    {
+      "when": "ゲームルールを変更する",
+      "inspect": ["packages/game-core", "packages/content", "packages/test-kit"],
+      "requiredChecks": ["npm run test --workspace @discord-hero/game-core", "npm run agent:smoke"]
+    },
+    {
+      "when": "通信形式を変更する",
+      "inspect": [
+        "packages/protocol",
+        "apps/activity/src/client/network",
+        "apps/activity/src/worker"
+      ],
+      "requiredChecks": [
+        "npm run test --workspace @discord-hero/protocol",
+        "npm run test --workspace @discord-hero/activity"
+      ]
+    },
+    {
+      "when": "永続化を変更する",
+      "inspect": [
+        "migrations",
+        "packages/protocol/src/persistence.ts",
+        "apps/activity/src/worker/persistence",
+        "apps/activity/src/worker/queue"
+      ],
+      "requiredChecks": [
+        "npm run db:migrate:local",
+        "npm run test --workspace @discord-hero/activity"
+      ]
+    },
+    {
+      "when": "クライアント表示を変更する",
+      "inspect": ["apps/activity/src/client"],
+      "requiredChecks": [
+        "npm run typecheck --workspace @discord-hero/activity",
+        "npm run build --workspace @discord-hero/activity"
+      ]
+    },
+    {
+      "when": "アセットを追加または保管方法を変更する",
+      "inspect": ["assets", "packages/assets", "scripts/assets", "apps/activity/src/client/assets"],
+      "requiredChecks": [
+        "npm run assets:validate",
+        "npm run assets:prepare:local",
+        "npm run typecheck --workspace @discord-hero/activity"
+      ]
+    }
+  ]
+}
