@@ -1,0 +1,46 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "game-spec-ui-revision",
+  "title": "ゲーム仕様と画面遷移仕様を更新する",
+  "objective": "Discord Heroの合意済み仕様を文書へ反映し、クラスをロードアウトの土台として扱う設計、プリセットを用いないおすすめ表示、状態別に分離した画面構成と画面遷移を明文化する。",
+  "risk": "low",
+  "constraints": [
+    "AGENTS.mdの規約を維持する",
+    "実装済みの挙動と完成時の目標仕様を混同しない",
+    "六葉のクローバーおよび専用共有ゲージを仕様へ含めない",
+    "アプリケーションコードと通信プロトコルは変更しない"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "ゲーム仕様書にクラスコア、自由なロードアウト、おすすめ表示、役割自動判定が定義されている",
+      "verification": "docs/GAME_SPEC.mdをレビューする"
+    },
+    {
+      "id": "AC-2",
+      "description": "接続、ロビー、ビルド編集、戦闘、結果の画面責務と遷移が専用文書に定義されている",
+      "verification": "docs/UI_SPEC.mdをレビューする"
+    },
+    {
+      "id": "AC-3",
+      "description": "READMEから最新のゲーム仕様書と画面仕様書へ到達できる",
+      "verification": "README.mdのドキュメント一覧をレビューする"
+    }
+  ],
+  "requiredChecks": ["format", "lint", "typecheck", "test", "build"],
+  "allowedPaths": [
+    ".ai/tasks/game-spec-ui-revision.json",
+    "README.md",
+    "docs/GAME_SPEC.md",
+    "docs/UI_SPEC.md"
+  ],
+  "forbiddenPaths": [
+    "apps/**",
+    "packages/**",
+    "assets/**",
+    "migrations/**",
+    ".github/**"
+  ],
+  "notes": "文書のみの変更。画面構成は実装要求ではなく完成時の製品仕様として記述する。"
+}
