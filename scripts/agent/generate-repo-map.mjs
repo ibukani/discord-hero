@@ -1,6 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import prettier from "prettier";
 import {
   collectFiles,
   isRecord,
@@ -92,9 +91,13 @@ async function renderRepositoryMap(metadataValue) {
   ]) {
     lines.push(`- ${code(file)}`);
   }
-  lines.push("");
   const raw = `${lines.join("\n")}\n`;
-  return await prettier.format(raw, { parser: "markdown" });
+  try {
+    const prettier = (await import("prettier")).default;
+    return await prettier.format(raw, { parser: "markdown" });
+  } catch {
+    return raw;
+  }
 }
 
 function stringValue(value) {

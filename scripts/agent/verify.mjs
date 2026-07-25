@@ -128,6 +128,7 @@ function command(name, executable, argumentsList) {
         cwd: repositoryRoot,
         encoding: "utf8",
         env: process.env,
+        shell: process.platform === "win32",
         maxBuffer: 20 * 1024 * 1024,
       });
       const outputParts = [result.stdout ?? "", result.stderr ?? ""];
@@ -153,7 +154,7 @@ function command(name, executable, argumentsList) {
 }
 
 function npmCommand() {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
+  return "npm";
 }
 
 function statusSymbol(status) {

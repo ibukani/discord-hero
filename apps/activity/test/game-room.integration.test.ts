@@ -89,7 +89,7 @@ describe("GameRoom integration", () => {
 
 function roomStub(roomId: string): DurableObjectStub<GameRoom> {
   const canonicalKey = `local:test-discord-client:${roomId}`;
-  return env.GAME_ROOMS.get(env.GAME_ROOMS.idFromName(canonicalKey)) as unknown as DurableObjectStub<GameRoom>;
+  return env.GAME_ROOMS.get(env.GAME_ROOMS.idFromName(canonicalKey));
 }
 
 async function createRoomTicket(
