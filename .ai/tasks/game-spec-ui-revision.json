@@ -1,0 +1,57 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "game-spec-ui-revision",
+  "title": "ゲーム仕様と画面遷移仕様を更新する",
+  "objective": "Discord Heroの合意済み仕様を文書へ反映し、クラスをロードアウトの土台として扱う設計、プリセットを用いないおすすめ表示、遠征Lv.の自動成長、進行方針による自動ルート・イベント選択、撤退基準、状態別に分離した画面構成を明文化する。",
+  "risk": "low",
+  "constraints": [
+    "AGENTS.mdの規約を維持する",
+    "実装済みの挙動と完成時の目標仕様を混同しない",
+    "遠征中に必須のレベルアップ選択やルート投票を仕様へ含めない",
+    "六葉のクローバーおよび専用共有ゲージを仕様へ含めない",
+    "アプリケーションコードと通信プロトコルは変更しない"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "ゲーム仕様書にクラスコア、自由なロードアウト、おすすめ表示、役割自動判定が定義されている",
+      "verification": "docs/GAME_SPEC.mdをレビューする"
+    },
+    {
+      "id": "AC-2",
+      "description": "遠征Lv.が遠征中のみ有効で、成長方針によって自動強化される仕様が定義されている",
+      "verification": "docs/GAME_SPEC.mdの遠征Lv.と自動成長をレビューする"
+    },
+    {
+      "id": "AC-3",
+      "description": "進行方針と撤退基準に基づき、ルート、イベント、続行判断が自動決定される仕様が定義されている",
+      "verification": "docs/GAME_SPEC.mdの進行方針と自動判断をレビューする"
+    },
+    {
+      "id": "AC-4",
+      "description": "接続、ロビー、ビルド・自動遠征設定、戦闘、結果の画面責務と遷移が定義されている",
+      "verification": "docs/UI_SPEC.mdをレビューする"
+    },
+    {
+      "id": "AC-5",
+      "description": "READMEから最新のゲーム仕様書と画面仕様書へ到達できる",
+      "verification": "README.mdのドキュメント一覧をレビューする"
+    }
+  ],
+  "requiredChecks": ["format", "lint", "typecheck", "test", "build"],
+  "allowedPaths": [
+    ".ai/tasks/game-spec-ui-revision.json",
+    "README.md",
+    "docs/GAME_SPEC.md",
+    "docs/UI_SPEC.md"
+  ],
+  "forbiddenPaths": [
+    "apps/**",
+    "packages/**",
+    "assets/**",
+    "migrations/**",
+    ".github/**"
+  ],
+  "notes": "文書のみの変更。自動成長、自動ルート選択、自動撤退は完成時の目標仕様として記述し、現行コードの3択強化や手動操作と区別する。"
+}
