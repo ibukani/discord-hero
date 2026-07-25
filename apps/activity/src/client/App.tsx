@@ -327,7 +327,7 @@ function errorMessage(error: unknown): string {
     try {
       return JSON.stringify(error);
     } catch {
-      return "[object]"; 
+      return "[object]";
     }
   }
   if (typeof error === "number" || typeof error === "boolean") {

@@ -18,6 +18,7 @@ const SessionClaimsSchema = TokenTimeSchema.extend({
   kind: z.literal("session"),
   sub: SafeIdSchema,
   displayName: DisplayNameSchema,
+  roomId: RoomIdSchema,
 });
 
 const RoomTicketClaimsSchema = TokenTimeSchema.extend({
@@ -36,6 +37,7 @@ type TokenClaims = SessionClaims | RoomTicketClaims;
 export async function issueSessionToken(
   userId: string,
   displayName: string,
+  roomId: string,
   secret: string,
   now: Date = new Date(),
 ): Promise<string> {
@@ -44,6 +46,7 @@ export async function issueSessionToken(
     kind: "session",
     sub: userId,
     displayName,
+    roomId,
     iat: issuedAt,
     exp: issuedAt + SESSION_TTL_SECONDS,
   });
@@ -67,6 +70,9 @@ export async function issueRoomTicket(
   secret: string,
   now: Date = new Date(),
 ): Promise<{ readonly token: string; readonly expiresAt: string }> {
+  if (session.roomId !== roomId) {
+    throw new TokenError("room_scope_mismatch");
+  }
   const issuedAt = Math.floor(now.getTime() / 1_000);
   const claims: RoomTicketClaims = RoomTicketClaimsSchema.parse({
     kind: "room_ticket",

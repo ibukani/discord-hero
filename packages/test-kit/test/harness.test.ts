@@ -1,4 +1,5 @@
 import { actionId } from "@discord-hero/game-core";
+import { PROTOCOL_VERSION } from "@discord-hero/protocol";
 import { describe, expect, it } from "vitest";
 import { FakeClock, MatchHarness, replayOperations, validClientMessage } from "../src/index.js";
 
@@ -45,7 +46,7 @@ describe("AI coding test harness", () => {
       actionId: "ready-1",
       ready: true,
     });
-    expect(message.protocolVersion).toBe(1);
+    expect(message.protocolVersion).toBe(PROTOCOL_VERSION);
   });
 });
 

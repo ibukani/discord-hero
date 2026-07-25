@@ -156,6 +156,7 @@ async function handleDiscordAuth(request: Request, env: RuntimeEnv): Promise<Res
   const sessionToken = await issueSessionToken(
     identity.userId,
     identity.displayName,
+    input.roomId,
     env.SESSION_SIGNING_SECRET,
     now,
   );
@@ -189,6 +190,7 @@ async function handleLocalAuth(request: Request, env: RuntimeEnv, id: string): P
   const sessionToken = await issueSessionToken(
     localUserId,
     input.displayName,
+    input.roomId,
     env.SESSION_SIGNING_SECRET,
     now,
   );
@@ -219,6 +221,9 @@ async function handleRoomTicket(request: Request, env: RuntimeEnv, id: string): 
   }
 
   const input = RoomTicketRequestSchema.parse(await readJsonBody(request));
+  if (input.roomId !== session.roomId) {
+    return errorResponse(403, "forbidden", "Session is not valid for this room", id);
+  }
   const ticket = await issueRoomTicket(session, input.roomId, env.SESSION_SIGNING_SECRET);
   return jsonResponse(
     RoomTicketResponseSchema.parse({

@@ -9,7 +9,8 @@
         "react-dom",
         "pixi.js",
         "@discord/embedded-app-sdk",
-        "cloudflare:test"
+        "cloudflare:test",
+        "cloudflare:workers"
       ],
       "forbiddenSourcePatterns": [
         {
@@ -27,16 +28,42 @@
         {
           "label": "environment access",
           "pattern": "\\bprocess\\.env\\b"
+        },
+        {
+          "label": "platform network access",
+          "pattern": "\\b(?:fetch|WebSocket|WebSocketPair)\\b"
+        },
+        {
+          "label": "Cloudflare runtime access",
+          "pattern": "\\bDurableObject(?:State|Storage|Namespace)?\\b"
+        },
+        {
+          "label": "ambient high-resolution clock access",
+          "pattern": "\\bperformance\\.now\\s*\\("
         }
       ]
     },
     "@discord-hero/content": {
       "allowedWorkspaceDependencies": ["@discord-hero/game-core"],
-      "forbiddenImports": ["react", "react-dom", "pixi.js", "@discord/embedded-app-sdk"]
+      "forbiddenImports": [
+        "react",
+        "react-dom",
+        "pixi.js",
+        "@discord/embedded-app-sdk",
+        "cloudflare:workers",
+        "cloudflare:test"
+      ]
     },
     "@discord-hero/protocol": {
       "allowedWorkspaceDependencies": [],
-      "forbiddenImports": ["react", "react-dom", "pixi.js", "@discord/embedded-app-sdk"]
+      "forbiddenImports": [
+        "react",
+        "react-dom",
+        "pixi.js",
+        "@discord/embedded-app-sdk",
+        "cloudflare:workers",
+        "cloudflare:test"
+      ]
     },
     "@discord-hero/test-kit": {
       "allowedWorkspaceDependencies": [

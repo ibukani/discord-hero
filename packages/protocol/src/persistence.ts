@@ -55,10 +55,19 @@ export const StoredGameStateSchema = z.object({
   result: MatchResultSchema.nullable(),
 });
 
-export const PersistedRoomSnapshotSchema = z.object({
+export const PersistedRoomSnapshotV1Schema = z.object({
   storageSchemaVersion: z.literal(1),
   savedAt: z.iso.datetime(),
   serverSequence: z.number().int().nonnegative(),
+  matchStartedAt: z.iso.datetime().nullable(),
+  game: StoredGameStateSchema,
+});
+
+export const PersistedRoomSnapshotSchema = z.object({
+  storageSchemaVersion: z.literal(2),
+  savedAt: z.iso.datetime(),
+  stateRevision: z.number().int().nonnegative(),
+  roomId: z.string().min(1).max(96).nullable(),
   matchStartedAt: z.iso.datetime().nullable(),
   game: StoredGameStateSchema,
 });
@@ -86,3 +95,53 @@ export const MatchFinishedEventSchema = z.object({
 export type StoredGameState = z.infer<typeof StoredGameStateSchema>;
 export type PersistedRoomSnapshot = z.infer<typeof PersistedRoomSnapshotSchema>;
 export type MatchFinishedEvent = z.infer<typeof MatchFinishedEventSchema>;
+
+export type PersistedRoomSnapshotParseResult =
+  | {
+      readonly success: true;
+      readonly data: PersistedRoomSnapshot;
+      readonly migratedFromVersion: 1 | null;
+    }
+  | {
+      readonly success: false;
+      readonly reason: "invalid_snapshot" | "unsupported_storage_version";
+    };
+
+const StorageVersionProbeSchema = z.object({
+  storageSchemaVersion: z.number().int(),
+});
+
+export function parsePersistedRoomSnapshot(input: unknown): PersistedRoomSnapshotParseResult {
+  const versionProbe = StorageVersionProbeSchema.safeParse(input);
+  if (!versionProbe.success) {
+    return { success: false, reason: "invalid_snapshot" };
+  }
+
+  if (versionProbe.data.storageSchemaVersion === 2) {
+    const parsed = PersistedRoomSnapshotSchema.safeParse(input);
+    return parsed.success
+      ? { success: true, data: parsed.data, migratedFromVersion: null }
+      : { success: false, reason: "invalid_snapshot" };
+  }
+
+  if (versionProbe.data.storageSchemaVersion === 1) {
+    const parsed = PersistedRoomSnapshotV1Schema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, reason: "invalid_snapshot" };
+    }
+    return {
+      success: true,
+      migratedFromVersion: 1,
+      data: {
+        storageSchemaVersion: 2,
+        savedAt: parsed.data.savedAt,
+        stateRevision: parsed.data.serverSequence,
+        roomId: null,
+        matchStartedAt: parsed.data.matchStartedAt,
+        game: parsed.data.game,
+      },
+    };
+  }
+
+  return { success: false, reason: "unsupported_storage_version" };
+}

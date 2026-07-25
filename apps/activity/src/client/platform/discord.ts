@@ -18,11 +18,13 @@ export class DiscordPlatformBridge implements PlatformBridge {
       state: "",
       scope: ["identify"],
     });
+    const roomId = RoomIdSchema.parse(this.sdk.instanceId);
     const auth = await postJson(
       "/api/auth/discord/exchange",
       {
         code: authorization.code,
         redirectUri: window.location.origin,
+        roomId,
       },
       AuthResponseSchema,
     );
@@ -35,7 +37,7 @@ export class DiscordPlatformBridge implements PlatformBridge {
 
     return {
       mode: "discord",
-      roomId: RoomIdSchema.parse(this.sdk.instanceId),
+      roomId,
       user: auth.user,
       sessionToken: auth.sessionToken,
       initialClassId: HeroClassIdSchema.parse("guardian"),

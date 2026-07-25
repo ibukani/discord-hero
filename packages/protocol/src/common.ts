@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-export const PROTOCOL_VERSION = 1 as const;
+export const PROTOCOL_VERSION = 2 as const;
 export const ProtocolVersionSchema = z.literal(PROTOCOL_VERSION);
+export const GAME_WEBSOCKET_PROTOCOL = `discord-hero.v${PROTOCOL_VERSION}`;
 
 export const SafeIdSchema = z
   .string()
@@ -27,6 +28,8 @@ export const ErrorCodeSchema = z.enum([
   "room_full",
   "rate_limited",
   "unsupported_protocol",
+  "unsupported_content",
+  "state_recovery_failed",
   "invalid_command",
   "internal_error",
 ]);

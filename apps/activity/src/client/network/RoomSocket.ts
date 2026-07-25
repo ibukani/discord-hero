@@ -1,12 +1,16 @@
+import { CURRENT_CONTENT } from "@discord-hero/content";
 import {
   PROTOCOL_VERSION,
+  GAME_WEBSOCKET_PROTOCOL,
   RoomTicketResponseSchema,
   parseServerMessage,
+  type ClientMessage,
   type HeroClassIdDto,
   type ServerMessage,
 } from "@discord-hero/protocol";
 import { postJson } from "../api/http.js";
 import type { PlatformSession } from "../platform/types.js";
+import { PendingCommandBuffer, type PendingCommand } from "./pending-commands.js";
 
 export type ConnectionStatus = "idle" | "connecting" | "connected" | "reconnecting" | "closed";
 
@@ -16,14 +20,26 @@ export interface RoomSocketCallbacks {
   readonly onError: (message: string) => void;
 }
 
+type ReliableIntent =
+  | { readonly type: "set_ready"; readonly ready: boolean }
+  | { readonly type: "select_class"; readonly classId: HeroClassIdDto }
+  | { readonly type: "start_match" }
+  | { readonly type: "cast_skill"; readonly skillId: string }
+  | { readonly type: "select_upgrade"; readonly upgradeId: string };
+
+const MAX_PENDING_COMMANDS = 128;
+
 export class RoomSocket {
   private socket: WebSocket | null = null;
   private disposed = false;
+  private welcomed = false;
+  private syncRequested = false;
   private reconnectAttempt = 0;
   private reconnectTimer: number | null = null;
   private pingTimer: number | null = null;
-  private lastServerSequence: number | null = null;
+  private lastStateRevision: number | null = null;
   private selectedClassId: HeroClassIdDto;
+  private readonly pendingCommands = new PendingCommandBuffer(MAX_PENDING_COMMANDS);
 
   public constructor(
     private readonly session: PlatformSession,
@@ -38,29 +54,31 @@ export class RoomSocket {
   }
 
   public setReady(ready: boolean): void {
-    this.send({ type: "set_ready", ready });
+    this.sendReliable({ type: "set_ready", ready });
   }
 
   public selectClass(classId: HeroClassIdDto): void {
     this.selectedClassId = classId;
-    this.send({ type: "select_class", classId });
+    this.sendReliable({ type: "select_class", classId });
   }
 
   public startMatch(): void {
-    this.send({ type: "start_match" });
+    this.sendReliable({ type: "start_match" });
   }
 
   public castSkill(skillId: string): void {
-    this.send({ type: "cast_skill", skillId });
+    this.sendReliable({ type: "cast_skill", skillId });
   }
 
   public selectUpgrade(upgradeId: string): void {
-    this.send({ type: "select_upgrade", upgradeId });
+    this.sendReliable({ type: "select_upgrade", upgradeId });
   }
 
   public close(): void {
     this.disposed = true;
+    this.welcomed = false;
     this.clearTimers();
+    this.pendingCommands.clear();
     this.socket?.close(1000, "Client disposed");
     this.socket = null;
     this.callbacks.onStatus("closed");
@@ -79,10 +97,9 @@ export class RoomSocket {
         return;
       }
 
-      const host = window.location.host;
       const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const socketUrl = `${scheme}//${host}/api/rooms/${encodeURIComponent(this.session.roomId)}/socket?ticket=${encodeURIComponent(ticket.ticket)}`;
-      const socket = new WebSocket(socketUrl, ["discord-hero.v1"]);
+      const socketUrl = `${scheme}//${window.location.host}/api/rooms/${encodeURIComponent(this.session.roomId)}/socket`;
+      const socket = new WebSocket(socketUrl, [GAME_WEBSOCKET_PROTOCOL, `auth.${ticket.ticket}`]);
       this.socket = socket;
 
       socket.addEventListener("open", () => {
@@ -91,11 +108,17 @@ export class RoomSocket {
           return;
         }
         this.reconnectAttempt = 0;
+        this.welcomed = false;
+        this.syncRequested = false;
         this.callbacks.onStatus("connected");
-        this.send({
+        this.sendEphemeral({
+          protocolVersion: PROTOCOL_VERSION,
           type: "hello",
+          actionId: crypto.randomUUID(),
           classId: this.selectedClassId,
-          lastServerSequence: this.lastServerSequence,
+          rulesetVersion: CURRENT_CONTENT.rulesetVersion,
+          contentVersion: CURRENT_CONTENT.version,
+          lastStateRevision: this.lastStateRevision,
         });
         this.startPing();
       });
@@ -105,13 +128,14 @@ export class RoomSocket {
       });
 
       socket.addEventListener("error", () => {
-        this.callbacks.onError(`WebSocket接続エラー (${host})`);
+        this.callbacks.onError("WebSocket接続でエラーが発生しました。");
       });
 
       socket.addEventListener("close", () => {
         if (this.socket === socket) {
           this.socket = null;
         }
+        this.welcomed = false;
         this.stopPing();
         if (!this.disposed) {
           this.scheduleReconnect();
@@ -131,40 +155,92 @@ export class RoomSocket {
       return;
     }
     try {
-      const parsedJson = JSON.parse(input) as unknown;
-      const message = parseServerMessage(parsedJson);
-      this.lastServerSequence = Math.max(this.lastServerSequence ?? 0, message.serverSequence);
+      const message = parseServerMessage(JSON.parse(input) as unknown);
+      if (message.type === "command_ack" || message.type === "command_rejected") {
+        this.pendingCommands.settle(message.actionId);
+      }
+
+      if (message.type === "welcome" || message.type === "snapshot") {
+        this.lastStateRevision = message.stateRevision;
+        this.syncRequested = false;
+      } else {
+        const previousRevision = this.lastStateRevision;
+        if (
+          message.type === "events" &&
+          previousRevision !== null &&
+          message.stateRevision > previousRevision + 1
+        ) {
+          this.requestSnapshot();
+        }
+        this.lastStateRevision = Math.max(previousRevision ?? 0, message.stateRevision);
+      }
+
       this.callbacks.onMessage(message);
+      if (message.type === "welcome") {
+        this.welcomed = true;
+        this.resendPendingCommands();
+      }
+      if (
+        message.type === "error" &&
+        (message.code === "unsupported_content" ||
+          message.code === "unsupported_protocol" ||
+          message.code === "state_recovery_failed")
+      ) {
+        this.disposed = true;
+        this.clearTimers();
+        this.socket?.close(1008, message.code);
+        this.callbacks.onStatus("closed");
+      }
     } catch (error: unknown) {
       this.callbacks.onError(`サーバーメッセージを検証できませんでした: ${errorMessage(error)}`);
     }
   }
 
-  private send(
-    intent:
-      | {
-          readonly type: "hello";
-          readonly classId: HeroClassIdDto;
-          readonly lastServerSequence: number | null;
-        }
-      | { readonly type: "set_ready"; readonly ready: boolean }
-      | { readonly type: "select_class"; readonly classId: HeroClassIdDto }
-      | { readonly type: "start_match" }
-      | { readonly type: "cast_skill"; readonly skillId: string }
-      | { readonly type: "select_upgrade"; readonly upgradeId: string }
-      | { readonly type: "ping"; readonly clientTimeMs: number },
-  ): void {
+  private sendReliable(intent: ReliableIntent): void {
+    const command = {
+      protocolVersion: PROTOCOL_VERSION,
+      actionId: crypto.randomUUID(),
+      ...intent,
+    } satisfies PendingCommand;
+    if (!this.pendingCommands.add(command)) {
+      this.callbacks.onError("未確認の操作が多すぎます。再接続を待ってください。");
+      return;
+    }
+    this.transmitPending(command);
+  }
+
+  private transmitPending(command: PendingCommand): void {
+    if (!this.welcomed) {
+      return;
+    }
+    this.sendEphemeral(command);
+  }
+
+  private resendPendingCommands(): void {
+    for (const command of this.pendingCommands.replay()) {
+      this.transmitPending(command);
+    }
+  }
+
+  private requestSnapshot(): void {
+    if (this.syncRequested) {
+      return;
+    }
+    this.syncRequested = true;
+    this.sendEphemeral({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "sync_request",
+      actionId: crypto.randomUUID(),
+      lastStateRevision: this.lastStateRevision,
+    });
+  }
+
+  private sendEphemeral(message: ClientMessage): void {
     const socket = this.socket;
     if (socket?.readyState !== WebSocket.OPEN) {
       return;
     }
-    socket.send(
-      JSON.stringify({
-        protocolVersion: PROTOCOL_VERSION,
-        actionId: crypto.randomUUID(),
-        ...intent,
-      }),
-    );
+    socket.send(JSON.stringify(message));
   }
 
   private scheduleReconnect(): void {
@@ -183,7 +259,12 @@ export class RoomSocket {
   private startPing(): void {
     this.stopPing();
     this.pingTimer = window.setInterval(() => {
-      this.send({ type: "ping", clientTimeMs: Date.now() });
+      this.sendEphemeral({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "ping",
+        actionId: crypto.randomUUID(),
+        clientTimeMs: Date.now(),
+      });
     }, 15_000);
   }
 
@@ -204,25 +285,5 @@ export class RoomSocket {
 }
 
 function errorMessage(error: unknown): string {
-  if (typeof error === "string") {
-    return error;
-  }
-  if (typeof error === "object" && error !== null) {
-    const candidate = error as { message?: unknown; name?: unknown };
-    if (typeof candidate.message === "string" && candidate.message.length > 0) {
-      return candidate.message;
-    }
-    if (typeof candidate.name === "string" && candidate.name.length > 0) {
-      return candidate.name;
-    }
-    try {
-      return JSON.stringify(error);
-    } catch {
-      return "[object]";
-    }
-  }
-  if (typeof error === "number" || typeof error === "boolean") {
-    return String(error);
-  }
-  return "不明なエラー";
+  return error instanceof Error ? error.message : "不明なエラー";
 }

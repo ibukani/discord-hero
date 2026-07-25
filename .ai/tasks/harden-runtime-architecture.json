@@ -1,0 +1,68 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "harden-runtime-architecture",
+  "title": "本番ランタイムの復旧性・互換性・境界防御を強化する",
+  "objective": "長期運用するモノレポ基盤として、バージョン付き状態復旧、WebSocketコマンドの確認応答と再同期、ルーム認可、完了イベントの耐久outboxと期限付き清掃を実装し、障害・再接続・重複配送に耐える状態にする。",
+  "risk": "high",
+  "constraints": [
+    "AGENTS.mdの規約を維持する",
+    "明示的な型安全性の回避を追加しない",
+    "ゲームルールの決定性とサーバー権威性を維持する",
+    "既存のCloudflareバインディング名とD1スキーマを破壊的に変更しない",
+    "永続状態と通信形式の非互換変更は明示的にバージョン管理する"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "永続スナップショットは明示的な移行関数を通り、未知の保存形式または未登録のruleset/contentを暗黙に新規ゲームへ置換しない",
+      "verification": "npm run test --workspace=@discord-hero/protocol && npm run test --workspace=@discord-hero/activity"
+    },
+    {
+      "id": "AC-2",
+      "description": "クライアントコマンドにackまたは拒否が返り、未確認コマンドは再接続後に同じactionIdで再送され、明示的なスナップショット再同期を要求できる",
+      "verification": "npm run test --workspace=@discord-hero/protocol && npm run test --workspace=@discord-hero/activity"
+    },
+    {
+      "id": "AC-3",
+      "description": "セッションは発行時のルームに束縛され、別ルームのticketを取得できず、ルーム全体とプレイヤー単位のWebSocket接続上限が拒否経路テストで確認できる",
+      "verification": "npm run test --workspace=@discord-hero/activity"
+    },
+    {
+      "id": "AC-4",
+      "description": "試合完了イベントはDurable Object storage上のoutboxを経由し、Queue送信失敗後もalarmで再試行され、送信済み完了ルームは保持期限後に清掃できる",
+      "verification": "npm run test --workspace=@discord-hero/activity"
+    },
+    {
+      "id": "AC-5",
+      "description": "コンテンツ登録時の参照整合性とゲームコアの主要な決定性・境界不変条件が自動テストで保護される",
+      "verification": "npm run test --workspace=@discord-hero/content && npm run test --workspace=@discord-hero/game-core"
+    },
+    {
+      "id": "AC-6",
+      "description": "型検査、lint、アーキテクチャ検査、テスト、ビルド、AIタスク検証がすべて成功する",
+      "verification": "npm run check && npm run agent:verify -- .ai/tasks/harden-runtime-architecture.json"
+    }
+  ],
+  "requiredChecks": ["lint", "typecheck", "test", "build"],
+  "allowedPaths": [
+    "apps/activity/src/**",
+    "apps/activity/test/**",
+    "apps/activity/vite.config.ts",
+    "packages/content/src/**",
+    "packages/content/test/**",
+    "packages/game-core/src/**",
+    "packages/game-core/test/**",
+    "packages/protocol/src/**",
+    "packages/protocol/test/**",
+    "packages/test-kit/test/**",
+    "docs/ARCHITECTURE.md",
+    "docs/OPERATIONS.md",
+    "docs/SECURITY.md",
+    ".ai/architecture-rules.json",
+    ".ai/REPOSITORY_MAP.md",
+    ".ai/tasks/harden-runtime-architecture.json"
+  ],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "Cloudflare Durable Objectsのalarmはat-least-onceであるためoutbox処理を冪等にし、WebSocket Hibernation後に必要な情報はattachmentまたはstorageから復元する。"
+}

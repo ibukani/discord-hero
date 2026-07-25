@@ -11,15 +11,16 @@ const now = new Date("2026-07-25T00:00:00.000Z");
 
 describe("signed tokens", () => {
   it("issues and verifies a session", async () => {
-    const token = await issueSessionToken("player-1", "Player", secret, now);
+    const token = await issueSessionToken("player-1", "Player", "room-1", secret, now);
     const claims = await verifySessionToken(token, secret, new Date("2026-07-25T00:01:00.000Z"));
 
     expect(claims.sub).toBe("player-1");
     expect(claims.displayName).toBe("Player");
+    expect(claims.roomId).toBe("room-1");
   });
 
   it("limits a room ticket to one room", async () => {
-    const sessionToken = await issueSessionToken("player-1", "Player", secret, now);
+    const sessionToken = await issueSessionToken("player-1", "Player", "room-1", secret, now);
     const session = await verifySessionToken(
       sessionToken,
       secret,
@@ -40,8 +41,17 @@ describe("signed tokens", () => {
     expect(claims.roomId).toBe("room-1");
   });
 
+  it("refuses to mint a ticket outside the session room", async () => {
+    const sessionToken = await issueSessionToken("player-1", "Player", "room-1", secret, now);
+    const session = await verifySessionToken(sessionToken, secret, now);
+
+    await expect(issueRoomTicket(session, "room-2", secret, now)).rejects.toThrow(
+      "room_scope_mismatch",
+    );
+  });
+
   it("rejects an expired session", async () => {
-    const token = await issueSessionToken("player-1", "Player", secret, now);
+    const token = await issueSessionToken("player-1", "Player", "room-1", secret, now);
 
     await expect(
       verifySessionToken(token, secret, new Date("2026-07-25T02:00:00.000Z")),

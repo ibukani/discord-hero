@@ -1,6 +1,12 @@
 import { env } from "cloudflare:workers";
-import { evictDurableObject, runInDurableObject } from "cloudflare:test";
-import { PROTOCOL_VERSION, parseServerMessage, type ServerMessage } from "@discord-hero/protocol";
+import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
+import { CURRENT_CONTENT } from "@discord-hero/content";
+import {
+  GAME_WEBSOCKET_PROTOCOL,
+  PROTOCOL_VERSION,
+  parseServerMessage,
+  type ServerMessage,
+} from "@discord-hero/protocol";
 import { describe, expect, it } from "vitest";
 import {
   issueRoomTicket,
@@ -8,9 +14,14 @@ import {
   verifySessionToken,
 } from "../src/worker/auth/tokens.js";
 import { type GameRoom } from "../src/worker/durable-objects/GameRoom.js";
+import {
+  COMPLETION_OUTBOX_STORAGE_KEY,
+  RESULT_QUEUED_PREFIX,
+  ROOM_LIFECYCLE_STORAGE_KEY,
+} from "../src/worker/durable-objects/completion-outbox.js";
+import { MAX_ROOM_CONNECTIONS } from "../src/worker/durable-objects/room-connections.js";
 
 const SIGNING_SECRET = "test-signing-secret-with-at-least-32-characters";
-const GAME_PROTOCOL = "discord-hero.v1";
 
 describe("GameRoom integration", () => {
   it("accepts a validated WebSocket and rejects ticket replay", async () => {
@@ -43,7 +54,9 @@ describe("GameRoom integration", () => {
         type: "hello",
         actionId: "hello-first",
         classId: "guardian",
-        lastServerSequence: null,
+        rulesetVersion: CURRENT_CONTENT.rulesetVersion,
+        contentVersion: CURRENT_CONTENT.version,
+        lastStateRevision: null,
       }),
     );
     const firstWelcome = await firstWelcomePromise;
@@ -72,7 +85,9 @@ describe("GameRoom integration", () => {
         type: "hello",
         actionId: "hello-second",
         classId: "guardian",
-        lastServerSequence: firstWelcome.serverSequence,
+        rulesetVersion: CURRENT_CONTENT.rulesetVersion,
+        contentVersion: CURRENT_CONTENT.version,
+        lastStateRevision: firstWelcome.stateRevision,
       }),
     );
     const secondWelcome = await secondWelcomePromise;
@@ -101,7 +116,9 @@ describe("GameRoom integration", () => {
         type: "hello",
         actionId: "hello-before-hibernation",
         classId: "guardian",
-        lastServerSequence: null,
+        rulesetVersion: CURRENT_CONTENT.rulesetVersion,
+        contentVersion: CURRENT_CONTENT.version,
+        lastStateRevision: null,
       }),
     );
     await firstWelcomePromise;
@@ -115,7 +132,9 @@ describe("GameRoom integration", () => {
         type: "hello",
         actionId: "hello-after-hibernation",
         classId: "guardian",
-        lastServerSequence: null,
+        rulesetVersion: CURRENT_CONTENT.rulesetVersion,
+        contentVersion: CURRENT_CONTENT.version,
+        lastStateRevision: null,
       }),
     );
     const restoredWelcome = await restoredWelcomePromise;
@@ -127,6 +146,208 @@ describe("GameRoom integration", () => {
 
     socket.close(1000, "test complete");
   });
+
+  it("acknowledges accepted commands and serves an explicit resync snapshot", async () => {
+    const roomId = "integration-room-ack";
+    const stub = roomStub(roomId);
+    const ticket = await createRoomTicket(roomId, "player-one", "Player One");
+    const response = await connect(stub, roomId, ticket);
+    const socket = requireWebSocket(response);
+    socket.accept();
+
+    const welcomePromise = nextMessage(socket, (message) => message.type === "welcome");
+    const helloAckPromise = nextMessage(
+      socket,
+      (message) => message.type === "command_ack" && message.actionId === "hello-ack",
+    );
+    socket.send(JSON.stringify(helloMessage("hello-ack", null)));
+    const welcome = await welcomePromise;
+    const helloAck = await helloAckPromise;
+    expect(helloAck.type).toBe("command_ack");
+
+    const snapshotPromise = nextMessage(socket, (message) => message.type === "snapshot");
+    const syncAckPromise = nextMessage(
+      socket,
+      (message) => message.type === "command_ack" && message.actionId === "sync-1",
+    );
+    socket.send(
+      JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "sync_request",
+        actionId: "sync-1",
+        lastStateRevision: welcome.stateRevision,
+      }),
+    );
+    const snapshot = await snapshotPromise;
+    const syncAck = await syncAckPromise;
+    expect(snapshot.type).toBe("snapshot");
+    expect(syncAck.type).toBe("command_ack");
+
+    socket.close(1000, "test complete");
+  });
+
+  it("rejects a client with an unsupported content version", async () => {
+    const roomId = "integration-room-content-mismatch";
+    const stub = roomStub(roomId);
+    const ticket = await createRoomTicket(roomId, "player-one", "Player One");
+    const response = await connect(stub, roomId, ticket);
+    const socket = requireWebSocket(response);
+    socket.accept();
+
+    const errorPromise = nextMessage(
+      socket,
+      (message) => message.type === "error" && message.code === "unsupported_content",
+    );
+    socket.send(
+      JSON.stringify({
+        ...helloMessage("hello-incompatible", null),
+        contentVersion: "unknown-content",
+      }),
+    );
+
+    const error = await errorPromise;
+    expect(error.type).toBe("error");
+  });
+
+  it("enforces the per-player WebSocket connection limit", async () => {
+    const roomId = "integration-room-connection-limit";
+    const stub = roomStub(roomId);
+    const firstResponse = await connect(
+      stub,
+      roomId,
+      await createRoomTicket(roomId, "player-one", "Player One"),
+    );
+    const firstSocket = requireWebSocket(firstResponse);
+    firstSocket.accept();
+    const secondResponse = await connect(
+      stub,
+      roomId,
+      await createRoomTicket(roomId, "player-one", "Player One"),
+    );
+    const secondSocket = requireWebSocket(secondResponse);
+    secondSocket.accept();
+
+    const rejected = await connect(
+      stub,
+      roomId,
+      await createRoomTicket(roomId, "player-one", "Player One"),
+    );
+    expect(rejected.status).toBe(429);
+    await rejected.text();
+
+    firstSocket.close(1000, "test complete");
+    secondSocket.close(1000, "test complete");
+  });
+
+  it("enforces the total room WebSocket connection limit", async () => {
+    const roomId = "integration-room-total-limit";
+    const stub = roomStub(roomId);
+    const sockets: WebSocket[] = [];
+    for (let index = 0; index < MAX_ROOM_CONNECTIONS; index += 1) {
+      const response = await connect(
+        stub,
+        roomId,
+        await createRoomTicket(roomId, `player-${index}`, `Player ${index}`),
+      );
+      const socket = requireWebSocket(response);
+      socket.accept();
+      sockets.push(socket);
+    }
+
+    const rejected = await connect(
+      stub,
+      roomId,
+      await createRoomTicket(roomId, "overflow-player", "Overflow Player"),
+    );
+    expect(rejected.status).toBe(429);
+    await rejected.text();
+
+    for (const socket of sockets) {
+      socket.close(1000, "test complete");
+    }
+  });
+
+  it("does not replace an unsupported persisted snapshot with a new game", async () => {
+    const roomId = "integration-room-invalid-recovery";
+    const stub = roomStub(roomId);
+    await runInDurableObject(stub, async (_instance: GameRoom, state) => {
+      await state.storage.put("room-snapshot", {
+        storageSchemaVersion: 999,
+        matchId: "must-not-be-replaced",
+      });
+    });
+    await evictDurableObject(stub, { webSockets: "close" });
+
+    const response = await connect(
+      stub,
+      roomId,
+      await createRoomTicket(roomId, "player-one", "Player One"),
+    );
+    expect(response.status).toBe(503);
+    await response.text();
+    await runInDurableObject(stub, async (_instance: GameRoom, state) => {
+      const stored = await state.storage.get<{ readonly storageSchemaVersion: number }>(
+        "room-snapshot",
+      );
+      expect(stored?.storageSchemaVersion).toBe(999);
+    });
+  });
+
+  it("delivers a persisted completion outbox from an alarm before scheduling cleanup", async () => {
+    const roomId = "integration-room-outbox-alarm";
+    const matchId = "match-outbox-alarm";
+    const stub = roomStub(roomId);
+    await runInDurableObject(stub, async (_instance: GameRoom, state) => {
+      await state.storage.put(COMPLETION_OUTBOX_STORAGE_KEY, {
+        eventId: `${matchId}:finished`,
+        matchId,
+        rulesetVersion: CURRENT_CONTENT.rulesetVersion,
+        contentVersion: CURRENT_CONTENT.version,
+        seed: "outbox-seed",
+        startedAt: "2026-07-25T00:00:00.000Z",
+        endedAt: "2026-07-25T00:01:00.000Z",
+        result: { outcome: "victory", durationMs: 60_000, completedAtTick: 600 },
+        players: [],
+      });
+      await state.storage.setAlarm(Date.now() + 60_000);
+    });
+
+    let delivered = false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      expect(await runDurableObjectAlarm(stub)).toBe(true);
+      delivered = await runInDurableObject(stub, async (_instance: GameRoom, state) =>
+        state.storage.get(COMPLETION_OUTBOX_STORAGE_KEY).then((stored) => stored === undefined),
+      );
+      if (delivered) {
+        break;
+      }
+    }
+    expect(delivered).toBe(true);
+
+    await runInDurableObject(stub, async (_instance: GameRoom, state) => {
+      expect(await state.storage.get(COMPLETION_OUTBOX_STORAGE_KEY)).toBeUndefined();
+      expect(await state.storage.get(`${RESULT_QUEUED_PREFIX}${matchId}`)).toBe(true);
+      expect(await state.storage.get(ROOM_LIFECYCLE_STORAGE_KEY)).toBeDefined();
+    });
+  });
+
+  it("removes expired completed-room storage from an alarm", async () => {
+    const roomId = "integration-room-cleanup-alarm";
+    const stub = roomStub(roomId);
+    await runInDurableObject(stub, async (_instance: GameRoom, state) => {
+      await state.storage.put({
+        [ROOM_LIFECYCLE_STORAGE_KEY]: { cleanupAtMs: 0 },
+        "temporary-completed-state": { retained: true },
+      });
+      await state.storage.setAlarm(Date.now() + 60_000);
+    });
+
+    await runDurableObjectAlarm(stub);
+
+    await runInDurableObject(stub, async (_instance: GameRoom, state) => {
+      expect(await state.storage.list()).toEqual(new Map());
+    });
+  }, 15_000);
 });
 
 function roomStub(roomId: string): DurableObjectStub<GameRoom> {
@@ -139,7 +360,7 @@ async function createRoomTicket(
   userId: string,
   displayName: string,
 ): Promise<string> {
-  const sessionToken = await issueSessionToken(userId, displayName, SIGNING_SECRET);
+  const sessionToken = await issueSessionToken(userId, displayName, roomId, SIGNING_SECRET);
   const session = await verifySessionToken(sessionToken, SIGNING_SECRET);
   return (await issueRoomTicket(session, roomId, SIGNING_SECRET)).token;
 }
@@ -149,10 +370,22 @@ function connect(stub: DurableObjectStub, roomId: string, ticket: string): Promi
     new Request(`https://activity.test/api/rooms/${encodeURIComponent(roomId)}/socket`, {
       headers: {
         Upgrade: "websocket",
-        "Sec-WebSocket-Protocol": `${GAME_PROTOCOL}, auth.${ticket}`,
+        "Sec-WebSocket-Protocol": `${GAME_WEBSOCKET_PROTOCOL}, auth.${ticket}`,
       },
     }),
   );
+}
+
+function helloMessage(actionId: string, lastStateRevision: number | null): object {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "hello",
+    actionId,
+    classId: "guardian",
+    rulesetVersion: CURRENT_CONTENT.rulesetVersion,
+    contentVersion: CURRENT_CONTENT.version,
+    lastStateRevision,
+  };
 }
 
 function requireWebSocket(response: Response): WebSocket {

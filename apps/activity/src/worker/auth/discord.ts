@@ -78,7 +78,10 @@ export async function exchangeDiscordCode(
     };
   }
 
-  throw lastError ?? new DiscordAuthError("token_exchange_failed", 400, "No valid redirect URI succeeded");
+  throw (
+    lastError ??
+    new DiscordAuthError("token_exchange_failed", 400, "No valid redirect URI succeeded")
+  );
 }
 
 export class DiscordAuthError extends Error {

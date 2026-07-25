@@ -79,6 +79,8 @@ function reduceServerMessage(state: AppState, message: ServerMessage): AppState 
         ...state,
         error: `操作が拒否されました: ${message.reason}`,
       };
+    case "command_ack":
+      return state;
     case "error":
       return {
         ...state,

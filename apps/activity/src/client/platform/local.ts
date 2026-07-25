@@ -19,7 +19,7 @@ export class LocalPlatformBridge implements PlatformBridge {
     );
     const displayName = query.get("name") ?? import.meta.env.VITE_LOCAL_DISPLAY_NAME ?? "Alice";
     const classId = HeroClassIdSchema.parse(query.get("class") ?? "guardian");
-    const request = LocalAuthRequestSchema.parse({ userId, displayName, classId });
+    const request = LocalAuthRequestSchema.parse({ userId, displayName, classId, roomId });
     const auth = await postJson("/api/auth/local", request, AuthResponseSchema);
 
     return {

@@ -87,6 +87,8 @@ HTTP／WebSocket／Queue／永続スナップショットの境界スキーマ�
 - 再接続
 - 切断時AI
 - 試合終了イベント送信
+- Storage outboxとalarmによる試合終了イベント再送
+- 完了ルームの期限付き清掃
 
 ### D1
 
@@ -149,7 +151,7 @@ test-kit ──▶ protocol
 1. Embedded App SDKで認可コード取得
 2. WorkerがDiscord OAuth APIでアクセストークンへ交換
 3. Discord SDKの`authenticate`を実行
-4. Workerが短命なアプリセッションを発行
+4. WorkerがActivity instanceのRoom IDへ束縛した短命なアプリセッションを発行
 5. ルーム接続前に、ルームとユーザーへ限定した短命チケットを発行
 6. WebSocketのサブプロトコルでチケットを送信
 
@@ -164,8 +166,11 @@ Local Platform Bridgeが開発ユーザーを作成します。ローカル認�
 - 休止復帰時は検証済み添付データからRoom IDを復元
 - メッセージは受信直後にスキーマ検証
 - `actionId`で再送コマンドを重複排除
-- `serverSequence`で順序を明示
-- 不整合時は完全スナップショットを再送
+- 受理したコマンドへ`command_ack`、拒否したコマンドへ`command_rejected`を返す
+- クライアントはack未受信コマンドを同じ`actionId`で再接続後に再送する
+- `stateRevision`で権威状態の版を明示し、欠落検知時は`sync_request`で完全スナップショットを要求する
+- hello時にruleset/contentの完全一致を確認し、非対応クライアントを拒否する
+- ルーム全体とプレイヤー単位の接続上限をDurable Objectで強制する
 
 ## 状態保存
 
@@ -179,7 +184,9 @@ Durable Object Storageへ以下の区切りでチェックポイントを保存�
 - 一定間隔
 - 試合終了
 
-保存データにはスキーマ、ルールセット、コンテンツ、プロトコルのバージョンを含めます。
+保存データにはストレージスキーマ、ルールセット、コンテンツのバージョンを含めます。読込時は保存形式の明示的な移行関数と、`packages/content`のバージョンレジストリを通します。未知の形式や未登録コンテンツは新規ゲームとして解釈せず、そのルームの復旧を停止します。
+
+試合終了時はQueue送信前に安定した`eventId`を持つイベントをDurable Object Storageのoutboxへ保存します。送信失敗はalarmで再試行し、Queue受理後にoutboxを削除します。重複送信はD1側の`eventId`で無害化します。
 
 ## 環境分離
 

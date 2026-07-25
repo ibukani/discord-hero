@@ -19,7 +19,9 @@ export const ClientMessageSchema = z.discriminatedUnion("type", [
   ClientEnvelopeSchema.extend({
     type: z.literal("hello"),
     classId: HeroClassIdSchema,
-    lastServerSequence: z.number().int().nonnegative().nullable(),
+    rulesetVersion: z.string().min(1).max(32),
+    contentVersion: z.string().min(1).max(32),
+    lastStateRevision: z.number().int().nonnegative().nullable(),
   }),
   ClientEnvelopeSchema.extend({
     type: z.literal("set_ready"),
@@ -41,6 +43,10 @@ export const ClientMessageSchema = z.discriminatedUnion("type", [
     upgradeId: z.string().min(1).max(96),
   }),
   ClientEnvelopeSchema.extend({
+    type: z.literal("sync_request"),
+    lastStateRevision: z.number().int().nonnegative().nullable(),
+  }),
+  ClientEnvelopeSchema.extend({
     type: z.literal("ping"),
     clientTimeMs: z.number().int().nonnegative(),
   }),
@@ -48,7 +54,7 @@ export const ClientMessageSchema = z.discriminatedUnion("type", [
 
 const ServerEnvelopeSchema = z.object({
   protocolVersion: ProtocolVersionSchema,
-  serverSequence: z.number().int().nonnegative(),
+  stateRevision: z.number().int().nonnegative(),
   serverTick: z.number().int().nonnegative(),
 });
 
@@ -105,6 +111,10 @@ export const ServerMessageSchema = z.discriminatedUnion("type", [
   ServerEnvelopeSchema.extend({
     type: z.literal("events"),
     events: z.array(DomainEventSchema),
+  }),
+  ServerEnvelopeSchema.extend({
+    type: z.literal("command_ack"),
+    actionId: ActionIdSchema,
   }),
   ServerEnvelopeSchema.extend({
     type: z.literal("command_rejected"),
