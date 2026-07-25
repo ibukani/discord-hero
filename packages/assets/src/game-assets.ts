@@ -20,3 +20,14 @@ export const KENNEY_UI_ASSET_IDS = {
 
 export type GameVisualAssetId = (typeof GAME_VISUAL_ASSET_IDS)[keyof typeof GAME_VISUAL_ASSET_IDS];
 export type KenneyUiAssetId = (typeof KENNEY_UI_ASSET_IDS)[keyof typeof KENNEY_UI_ASSET_IDS];
+
+export const RAVEN_UI_ASSET_IDS = {
+  star: "raven.ui.star",
+  trophy: "raven.ui.trophy",
+  tree: "raven.ui.tree",
+  helmet: "raven.ui.helmet",
+  question: "raven.ui.question",
+} as const;
+
+export type RavenUiAssetId = (typeof RAVEN_UI_ASSET_IDS)[keyof typeof RAVEN_UI_ASSET_IDS];
+export type UiAssetId = KenneyUiAssetId | RavenUiAssetId;

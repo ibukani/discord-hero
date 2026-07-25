@@ -1,0 +1,80 @@
+{
+  "$schema": "../../asset-pack.schema.json",
+  "schemaVersion": 1,
+  "id": "raven-fantasy-icons",
+  "version": "free-2026.07",
+  "displayName": "Raven Fantasy Icons - selected UI icons",
+  "description": "ロビー、ビルド、結果画面で意味を伝えるために選定したRaven Fantasy Iconsのピクセルアイコン。",
+  "environments": ["local", "staging", "production"],
+  "required": false,
+  "ownership": "third-party",
+  "license": {
+    "name": "Clockwork Raven Raven Fantasy Icons License",
+    "spdx": null,
+    "sourceUrl": "https://clockworkraven.itch.io/raven-fantasy-icons",
+    "redistribution": "prohibited",
+    "modification": "allowed",
+    "repositoryPolicy": "forbidden",
+    "deploymentPolicy": "allowed",
+    "attributionRequired": false,
+    "attributionText": "Raven Fantasy Icons by Clockwork Raven (https://clockworkraven.itch.io/raven-fantasy-icons)",
+    "notes": "ゲームへの組み込みと改変は許可されているが、素材単体の再配布・販売は禁止。元アーカイブは.local/assetsに保持する。"
+  },
+  "source": {
+    "kind": "local-archive",
+    "archiveNames": ["Free - Raven Fantasy Icons.zip"],
+    "archiveRoot": "Free - Raven Fantasy Icons",
+    "sha256": "3656dc0db6c4a3f9ddf38a24fb12c00988379b0dfe24e44cc3b2a36ae0539e13"
+  },
+  "delivery": {
+    "kind": "bundle",
+    "publicPath": "raven-fantasy-icons"
+  },
+  "files": [
+    {
+      "id": "raven.ui.star",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "Separated Files/64x64/fc12.png",
+      "outputPath": "icons/star.png",
+      "pixelArt": true,
+      "expected": { "image": { "width": 64, "height": 64 } }
+    },
+    {
+      "id": "raven.ui.trophy",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "Separated Files/64x64/fc15.png",
+      "outputPath": "icons/trophy.png",
+      "pixelArt": true,
+      "expected": { "image": { "width": 64, "height": 64 } }
+    },
+    {
+      "id": "raven.ui.tree",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "Separated Files/64x64/fc46.png",
+      "outputPath": "icons/tree.png",
+      "pixelArt": true,
+      "expected": { "image": { "width": 64, "height": 64 } }
+    },
+    {
+      "id": "raven.ui.helmet",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "Separated Files/64x64/fc24.png",
+      "outputPath": "icons/helmet.png",
+      "pixelArt": true,
+      "expected": { "image": { "width": 64, "height": 64 } }
+    },
+    {
+      "id": "raven.ui.question",
+      "kind": "image",
+      "mediaType": "image/png",
+      "sourcePath": "Separated Files/64x64/fc13.png",
+      "outputPath": "icons/question.png",
+      "pixelArt": true,
+      "expected": { "image": { "width": 64, "height": 64 } }
+    }
+  ]
+}

@@ -2393,3 +2393,54 @@ button:disabled {
 .panel {
   background-image: linear-gradient(135deg, rgba(255, 248, 219, 0.09), transparent 42%);
 }
+
+.raven-icon {
+  inset: 14%;
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.party-panel .party-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lobby-empty-slot {
+  border-style: dashed;
+  border-color: #7c9aa5;
+  background-color: #334f60;
+  background-image: var(--asset-frame-light);
+  background-size: 100% 100%;
+  opacity: 0.9;
+}
+
+.lobby-empty-slot .party-member-main strong {
+  color: #d8e7df;
+  font-size: 0.8rem;
+}
+
+.class-icon {
+  inset: auto 10px 10px auto;
+  width: 36px;
+  height: 36px;
+  opacity: 0.88;
+}
+
+.battle-class-icon {
+  inset: 14%;
+  width: 72%;
+  height: 72%;
+}
+
+.compact-class-icon {
+  inset: 10%;
+  width: 80%;
+  height: 80%;
+}
+
+@media (max-width: 760px) {
+  .party-panel .party-list {
+    grid-template-columns: 1fr;
+  }
+}

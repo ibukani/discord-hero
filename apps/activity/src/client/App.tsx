@@ -1,5 +1,11 @@
 import { DEFAULT_CONTENT } from "@discord-hero/content";
-import { KENNEY_UI_ASSET_IDS, type AssetCatalog, type KenneyUiAssetId } from "@discord-hero/assets";
+import {
+  KENNEY_UI_ASSET_IDS,
+  RAVEN_UI_ASSET_IDS,
+  type AssetCatalog,
+  type KenneyUiAssetId,
+  type RavenUiAssetId,
+} from "@discord-hero/assets";
 import { HERO_CLASS_IDS, type EquipmentSlot } from "@discord-hero/game-core";
 import type {
   AccountProgress,
@@ -15,7 +21,7 @@ import type {
 import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState, type JSX } from "react";
 import { RoomSocket } from "./network/RoomSocket.js";
 import { loadAssetCatalog } from "./assets/AssetCatalog.js";
-import { PixelAsset } from "./assets/PixelAsset.js";
+import { PixelAsset, RavenIcon } from "./assets/PixelAsset.js";
 import { createPlatformBridge, type PlatformBridge } from "./platform/index.js";
 import { appReducer, INITIAL_APP_STATE } from "./state/app-state.js";
 
@@ -331,7 +337,7 @@ export function App(): JSX.Element {
         <div className="brand-lockup">
           <span className="brand-crest" aria-hidden="true">
             <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0004} />
-            <span className="brand-glyph">✦</span>
+            <RavenIcon catalog={assetCatalog} assetId={RAVEN_UI_ASSET_IDS.star} />
           </span>
           <div>
             <p className="eyebrow">Discord Activity / Cooperative Roguelite</p>
@@ -381,7 +387,7 @@ function ConnectionView({
     <section className="connection-screen panel">
       <div className="connection-emblem" aria-hidden="true">
         <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0004} />
-        <span>✦</span>
+        <RavenIcon catalog={assetCatalog} assetId={RAVEN_UI_ASSET_IDS.question} />
       </div>
       <p className="eyebrow">ROOM LINK</p>
       <h2>遠征ルームへ接続中</h2>
@@ -437,12 +443,13 @@ function LobbyView({
         </div>
         <div className="expedition-mark" aria-label="遠征エリア">
           <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0005} />
+          <RavenIcon catalog={assetCatalog} assetId={RAVEN_UI_ASSET_IDS.tree} />
           <span>01</span>
         </div>
       </section>
 
       <div className="lobby-grid">
-        <section className="panel">
+        <section className="panel party-panel">
           <div className="panel-heading">
             <h2>パーティー {players.length}/4</h2>
             <button type="button" className="secondary-button" onClick={onInvite}>
@@ -473,6 +480,23 @@ function LobbyView({
                 </div>
               </article>
             ))}
+            {Array.from({ length: Math.max(0, 4 - players.length) }, (_, index) => (
+              <article
+                className="party-member lobby-member lobby-empty-slot"
+                key={`empty-${index}`}
+              >
+                <div className="avatar-chip" aria-hidden="true">
+                  <RavenIcon catalog={assetCatalog} assetId={RAVEN_UI_ASSET_IDS.question} />
+                </div>
+                <div className="party-member-main">
+                  <strong>待機スロット {players.length + index + 1}</strong>
+                  <span>招待でヒーローが参加します</span>
+                </div>
+                <div className="ready-state">
+                  <span className="waiting-badge">空き</span>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -488,7 +512,7 @@ function LobbyView({
               <div className="build-summary">
                 <span className="build-icon" aria-hidden="true">
                   <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0000} />
-                  <span>◆</span>
+                  <RavenIcon catalog={assetCatalog} assetId={RAVEN_UI_ASSET_IDS.helmet} />
                 </span>
                 <div>
                   <strong>{CLASS_LABELS[currentPlayer.classId]}</strong>
@@ -648,7 +672,7 @@ function SettingsView({
         </div>
         <span className="settings-gem" aria-hidden="true">
           <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0004} />
-          <span>✦</span>
+          <RavenIcon catalog={assetCatalog} assetId={RAVEN_UI_ASSET_IDS.star} />
         </span>
       </div>
 
@@ -690,6 +714,11 @@ function SettingsView({
                   {DEFAULT_CONTENT.classes[classId].attackPower}
                 </span>
                 <small>{roleTags(classId).join(" · ")}</small>
+                <RavenIcon
+                  catalog={assetCatalog}
+                  assetId={classIconId(classId)}
+                  className="class-icon"
+                />
               </button>
             ))}
           </div>
@@ -971,9 +1000,15 @@ function BattleView({
         <div className="battle-player-strip">
           <div className="battle-hero-icon" aria-hidden="true">
             <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0002} />
-            <span>
-              {currentPlayer === null ? "?" : CLASS_LABELS[currentPlayer.classId].slice(0, 1)}
-            </span>
+            <RavenIcon
+              catalog={assetCatalog}
+              assetId={
+                currentPlayer === null
+                  ? RAVEN_UI_ASSET_IDS.question
+                  : classIconId(currentPlayer.classId)
+              }
+              className="battle-class-icon"
+            />
           </div>
           <div className="battle-hero-info">
             <strong>{currentPlayer?.displayName ?? "Hero"}</strong>
@@ -1055,7 +1090,11 @@ function BattleView({
               <div className="compact-party-row" key={player.id}>
                 <span className="compact-avatar">
                   <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0003} />
-                  <span>{player.displayName.slice(0, 1)}</span>
+                  <RavenIcon
+                    catalog={assetCatalog}
+                    assetId={classIconId(player.classId)}
+                    className="compact-class-icon"
+                  />
                 </span>
                 <span>
                   <strong>{player.displayName}</strong>
@@ -1217,6 +1256,16 @@ function ResultView({
         aria-hidden="true"
       >
         <PixelAsset catalog={assetCatalog} assetId={KENNEY_UI_ASSET_IDS.tile0005} />
+        <RavenIcon
+          catalog={assetCatalog}
+          assetId={
+            victory
+              ? RAVEN_UI_ASSET_IDS.trophy
+              : returned
+                ? RAVEN_UI_ASSET_IDS.tree
+                : RAVEN_UI_ASSET_IDS.question
+          }
+        />
         <span className="result-glyph">{victory ? "★" : returned ? "↩" : "×"}</span>
       </div>
       <p className="eyebrow">EXPEDITION REPORT</p>
@@ -1349,6 +1398,19 @@ function roleTags(classId: HeroClassIdDto): readonly string[] {
       return ["範囲火力", "妨害"];
     case "support":
       return ["回復", "強化"];
+  }
+}
+
+function classIconId(classId: HeroClassIdDto): RavenUiAssetId {
+  switch (classId) {
+    case "guardian":
+      return RAVEN_UI_ASSET_IDS.helmet;
+    case "ranger":
+      return RAVEN_UI_ASSET_IDS.tree;
+    case "mage":
+      return RAVEN_UI_ASSET_IDS.star;
+    case "support":
+      return RAVEN_UI_ASSET_IDS.question;
   }
 }
 
