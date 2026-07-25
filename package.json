@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.12.0"
+    "node": "^22.13.0 || >=24.0.0",
+    "npm": ">=12.0.1 <13"
   },
-  "packageManager": "npm@10.9.2",
+  "packageManager": "npm@12.0.1",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -18,9 +19,11 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/content && npm run test --workspace @discord-hero/protocol && npm run test --workspace @discord-hero/assets && npm run test --workspace @discord-hero/test-kit && npm run test --workspace @discord-hero/activity",
+    "test": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/content && npm run test --workspace @discord-hero/protocol && npm run test --workspace @discord-hero/assets && npm run test --workspace @discord-hero/test-kit && npm run test --workspace @discord-hero/activity && npm run test:deployment-preflight",
     "check:no-any": "node scripts/check-no-any.mjs",
-    "check": "npm run check:no-any && npm run check:architecture && npm run check:task-contract && npm run check:task-scope && npm run check:repo-map && npm run assets:validate && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
+    "check": "npm run check:no-any && npm run check:architecture && npm run check:task-contract && npm run check:task-scope && npm run check:repo-map && npm run check:dependencies && npm run check:cf-types && npm run assets:validate && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
+    "check:dependencies": "node scripts/check-dependencies.mjs",
+    "check:cf-types": "npm run cf:typegen:check --workspace @discord-hero/activity",
     "cf:typegen": "npm run cf:typegen --workspace @discord-hero/activity",
     "dev:activity": "npm run dev --workspace @discord-hero/activity",
     "db:migrate:local": "npm run db:migrate:local --workspace @discord-hero/activity",
@@ -28,6 +31,7 @@
     "db:migrate:production": "npm run db:migrate:production --workspace @discord-hero/activity",
     "deploy:staging": "npm run deploy:staging --workspace @discord-hero/activity",
     "deploy:production": "npm run deploy:production --workspace @discord-hero/activity",
+    "deploy:preflight": "node scripts/deployment/preflight.mjs",
     "check:architecture": "node scripts/agent/check-architecture.mjs",
     "check:task-contract": "node scripts/agent/validate-task.mjs --all",
     "check:repo-map": "node scripts/agent/generate-repo-map.mjs --check",
@@ -40,6 +44,7 @@
     "agent:verify:static": "node scripts/agent/verify.mjs --static-only",
     "check:task-scope": "node scripts/agent/check-task-scope.mjs",
     "agent:harness:self-test": "node scripts/agent/self-test.mjs",
+    "test:deployment-preflight": "node --test scripts/deployment/preflight.test.mjs",
     "assets:install": "node scripts/assets/install.mjs",
     "assets:sync": "node scripts/assets/sync.mjs",
     "assets:prepare": "node scripts/assets/prepare.mjs",
@@ -52,17 +57,27 @@
     "assets:pack": "node scripts/assets/create-pack.mjs"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.1",
+    "@eslint/js": "10.0.1",
     "@types/node": "26.1.1",
-    "eslint": "9.39.1",
+    "eslint": "10.8.0",
     "eslint-plugin-react-hooks": "7.1.1",
-    "globals": "16.3.0",
+    "fflate": "0.8.3",
+    "globals": "17.7.0",
+    "jsonc-parser": "3.3.1",
     "prettier": "3.9.6",
-    "typescript": "5.8.2",
-    "typescript-eslint": "8.64.0",
-    "fflate": "0.8.2"
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.65.0"
   },
   "overrides": {
-    "brace-expansion": "2.0.1"
+    "minimatch@3.1.5": {
+      "brace-expansion": "1.1.16"
+    },
+    "minimatch@10.2.5": {
+      "brace-expansion": "5.0.8"
+    }
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260722.1": true
   }
 }

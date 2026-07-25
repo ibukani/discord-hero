@@ -3,8 +3,16 @@
   "name": "discord-hero-local",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-07-25",
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true,
+    "logs": {
+      "head_sampling_rate": 1,
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01,
+    },
   },
   "secrets": {
     "required": ["DISCORD_CLIENT_SECRET", "SESSION_SIGNING_SECRET"],
@@ -26,18 +34,28 @@
       },
     ],
   },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["GameRoom"],
+  "exports": {
+    "GameRoom": {
+      "type": "durable-object",
+      "storage": "sqlite",
     },
-  ],
+  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "discord-hero-local",
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "../../migrations",
+    },
+  ],
+  "ratelimits": [
+    {
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "10001",
+      "simple": {
+        "limit": 60,
+        "period": 60,
+      },
     },
   ],
   "queues": {
@@ -60,6 +78,9 @@
   "env": {
     "staging": {
       "name": "discord-hero-staging",
+      "secrets": {
+        "required": ["DISCORD_CLIENT_SECRET", "SESSION_SIGNING_SECRET"],
+      },
       "vars": {
         "APP_ENV": "staging",
         "ALLOW_LOCAL_AUTH": "false",
@@ -79,6 +100,16 @@
           "database_name": "discord-hero-staging",
           "database_id": "REPLACE_WITH_STAGING_D1_DATABASE_ID",
           "migrations_dir": "../../migrations",
+        },
+      ],
+      "ratelimits": [
+        {
+          "name": "AUTH_RATE_LIMITER",
+          "namespace_id": "10002",
+          "simple": {
+            "limit": 60,
+            "period": 60,
+          },
         },
       ],
       "queues": {
@@ -101,6 +132,9 @@
     },
     "production": {
       "name": "discord-hero-production",
+      "secrets": {
+        "required": ["DISCORD_CLIENT_SECRET", "SESSION_SIGNING_SECRET"],
+      },
       "vars": {
         "APP_ENV": "production",
         "ALLOW_LOCAL_AUTH": "false",
@@ -120,6 +154,16 @@
           "database_name": "discord-hero-production",
           "database_id": "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID",
           "migrations_dir": "../../migrations",
+        },
+      ],
+      "ratelimits": [
+        {
+          "name": "AUTH_RATE_LIMITER",
+          "namespace_id": "10003",
+          "simple": {
+            "limit": 60,
+            "period": 60,
+          },
         },
       ],
       "queues": {

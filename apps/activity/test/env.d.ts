@@ -1,7 +1,11 @@
-import type { Env } from "../src/worker/env.js";
+import type { D1Migration } from "@cloudflare/vitest-pool-workers";
 
-declare module "cloudflare:workers" {
-  interface ProvidedEnv extends Env {
-    readonly TEST_MIGRATIONS: readonly D1Migration[];
+declare global {
+  namespace Cloudflare {
+    interface Env {
+      readonly TEST_MIGRATIONS: D1Migration[];
+    }
   }
 }
+
+export {};

@@ -23,7 +23,7 @@ import {
 } from "@discord-hero/protocol";
 import { z } from "zod";
 import { verifyRoomTicket } from "../auth/tokens.js";
-import type { Env } from "../env.js";
+import { assertRuntimeEnv, type RuntimeEnv } from "../env.js";
 import {
   createLogger,
   hashIdentifier,
@@ -66,21 +66,23 @@ const ProtocolProbeSchema = z.object({
 const MESSAGE_RATE_WINDOW_MS = 10_000;
 const MAX_MESSAGES_PER_RATE_WINDOW = 40;
 
-export class GameRoom extends DurableObject<Env> {
+export class GameRoom extends DurableObject<RuntimeEnv> {
   private game: GameState | null = null;
   private serverSequence = 0;
   private roomId: string | null = null;
   private matchStartedAt: string | null = null;
-  private tickTimer: number | null = null;
+  private tickTimer: ReturnType<typeof setTimeout> | null = null;
   private lastBroadcastAt = 0;
   private lastCheckpointAt = 0;
   private readonly logger: Logger;
 
-  public constructor(ctx: DurableObjectState, env: Env) {
+  public constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
+    assertRuntimeEnv(env);
     super(ctx, env);
     this.logger = createLogger(env.APP_ENV);
     void this.ctx.blockConcurrencyWhile(async () => {
       await this.restore();
+      this.restoreRoomIdentityFromConnections();
       if (this.game?.status === "running" && this.ctx.getWebSockets().length > 0) {
         this.scheduleTick();
       }
@@ -136,7 +138,6 @@ export class GameRoom extends DurableObject<Env> {
       this.logger.warn({
         event: "room_socket_rejected",
         errorCode: normalized.name,
-        details: { message: normalized.message },
       });
       return new Response("Invalid room ticket", { status: 401 });
     }
@@ -206,7 +207,7 @@ export class GameRoom extends DurableObject<Env> {
 
     this.logger.info({
       event: "room_socket_closed",
-      details: { code, reason, wasClean },
+      details: { code, reasonLength: reason.length, wasClean },
     });
   }
 
@@ -215,7 +216,6 @@ export class GameRoom extends DurableObject<Env> {
     this.logger.warn({
       event: "room_socket_error",
       errorCode: normalized.name,
-      details: { message: normalized.message },
     });
     const attachment = this.readAttachment(socket);
     if (attachment !== null && !this.hasAnotherConnection(attachment.playerId, socket)) {
@@ -346,7 +346,7 @@ export class GameRoom extends DurableObject<Env> {
     this.tickTimer = setTimeout(() => {
       this.tickTimer = null;
       this.ctx.waitUntil(this.runTick());
-    }, TICK_MS) as unknown as number;
+    }, TICK_MS);
   }
 
   private async runTick(): Promise<void> {
@@ -512,6 +512,27 @@ export class GameRoom extends DurableObject<Env> {
   private readAttachment(socket: WebSocket): ConnectionAttachment | null {
     const parsed = ConnectionAttachmentSchema.safeParse(socket.deserializeAttachment());
     return parsed.success ? parsed.data : null;
+  }
+
+  private restoreRoomIdentityFromConnections(): void {
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = this.readAttachment(socket);
+      if (attachment === null) {
+        socket.close(1008, "Invalid connection state");
+        continue;
+      }
+      if (this.roomId === null) {
+        this.roomId = attachment.roomId;
+        continue;
+      }
+      if (this.roomId !== attachment.roomId) {
+        this.logger.error({
+          event: "room_connection_identity_mismatch",
+          errorCode: "invalid_connection_state",
+        });
+        socket.close(1008, "Invalid connection state");
+      }
+    }
   }
 
   private consumeMessageBudget(socket: WebSocket, attachment: ConnectionAttachment): boolean {

@@ -6,7 +6,10 @@ const checkedExtensions = new Set([".ts", ".tsx"]);
 const ignoredDirectories = new Set(["node_modules", "dist", "coverage", ".wrangler"]);
 const forbiddenPatterns = [
   { label: "explicit any type", pattern: /\bany\b/u },
-  { label: "TypeScript suppression", pattern: /@ts-(?:ignore|nocheck)/u },
+  { label: "TypeScript suppression", pattern: /@ts-(?:ignore|nocheck|expect-error)/u },
+];
+const forbiddenSourcePatterns = [
+  { label: "unsafe double assertion", pattern: /\bas\s+unknown\s+as\b/gu },
 ];
 
 async function collectFiles(directoryUrl) {
@@ -51,6 +54,17 @@ for (const fileUrl of await collectFiles(root)) {
       }
     }
   });
+
+  for (const forbidden of forbiddenSourcePatterns) {
+    for (const match of source.matchAll(forbidden.pattern)) {
+      const matchIndex = match.index ?? 0;
+      const lineNumber = source.slice(0, matchIndex).split("\n").length;
+      const line = lines[lineNumber - 1]?.trim() ?? "";
+      violations.push(
+        `${relative(root.pathname, fileUrl.pathname)}:${lineNumber}: ${forbidden.label}: ${line}`,
+      );
+    }
+  }
 }
 
 if (violations.length > 0) {
@@ -58,5 +72,5 @@ if (violations.length > 0) {
   console.error(violations.join("\n"));
   process.exitCode = 1;
 } else {
-  console.log("No explicit any types or TypeScript suppressions found.");
+  console.log("No explicit any types, TypeScript suppressions, or unsafe double assertions found.");
 }

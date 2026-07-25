@@ -38,6 +38,7 @@
 - WebSocketメッセージ上限
 - ルームID、表示名、アクションIDの長さ制限
 - WebSocket接続単位のメッセージレート制限
+- 認証、ルームチケット、WebSocket入口のWorker Rate Limiting binding
 - 対応外プロトコルの拒否
 - 状態に不適切なコマンドの拒否
 
@@ -57,7 +58,8 @@
 - `APP_ENV`が`local`
 - `ALLOW_LOCAL_AUTH`が文字列`true`
 - Hostがlocalhost系
-- 本番環境設定ではローカル認証変数を定義しない
+- Staging／Productionでは`ALLOW_LOCAL_AUTH=false`を明示する
+- 起動時の環境スキーマ検証とデプロイ前プリフライトを通過する
 
 ## ログ
 
@@ -70,10 +72,15 @@
 
 個人を直接識別する情報は、障害解析に必要な最小限だけにします。
 
+Room IDを含むHTTP pathと、クライアントが指定できるWebSocket close reasonはそのまま記録しません。環境検証エラーや境界検証エラーは入力値を含めず、安定したerror codeだけを記録します。
+
 ## 依存関係
 
 - 依存パッケージ名を公式配布元で確認
 - 初回インストールで生成したlockfileをレビューしてコミット
 - lockfileがあるCIとデプロイでは`npm ci`を使用
+- Node.jsとnpmのバージョンを固定し、CIも同じmajorを使用
+- npm 12の`allowScripts`は審査した正確なパッケージバージョンだけを許可
+- `npm audit`のhigh／criticalと壊れた依存木をCIで拒否
 - Dependabot等で更新PRを作成
 - 依存更新時も型検査、テスト、ビルドをすべて実行

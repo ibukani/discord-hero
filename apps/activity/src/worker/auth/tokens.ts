@@ -170,7 +170,7 @@ async function verifySignature(input: string, signature: string, secret: string)
   return crypto.subtle.verify(
     "HMAC",
     key,
-    decodeBase64Url(signature).buffer,
+    decodeBase64Url(signature),
     new TextEncoder().encode(input),
   );
 }
@@ -193,7 +193,7 @@ function encodeBase64Url(bytes: Uint8Array): string {
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
 }
 
-function decodeBase64Url(value: string): Uint8Array {
+function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> {
   const paddingLength = (4 - (value.length % 4)) % 4;
   const base64 = value.replaceAll("-", "+").replaceAll("_", "/") + "=".repeat(paddingLength);
   const binary = atob(base64);

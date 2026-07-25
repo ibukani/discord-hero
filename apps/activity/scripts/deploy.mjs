@@ -7,6 +7,7 @@ if (environment === undefined || !allowedEnvironments.has(environment)) {
   throw new Error("Deployment environment must be staging or production");
 }
 
+run("node", ["../../scripts/deployment/preflight.mjs", environment], process.env);
 run("node", ["../../scripts/assets/prepare.mjs", "--mode", environment], process.env);
 run("npm", ["exec", "--", "vite", "build"], {
   ...process.env,

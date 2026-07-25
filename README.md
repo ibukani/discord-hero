@@ -19,7 +19,7 @@ Discord Activityとして複数人で遊べる、タスクバー風UIの協力�
 - Cloudflare Queueコンシューマー
 - local／staging／productionの環境分離
 - 厳格なTypeScript／ESLint設定
-- 明示的な`any`とTypeScript抑制を拒否する検査
+- 明示的な`any`、TypeScript抑制、危険な二重キャストを拒否する検査
 - CI、依存更新、手動デプロイ用GitHub Actions
 - AIコーディング用ハーネス、`AGENTS.md`、設計ドキュメント
 
@@ -27,15 +27,15 @@ Discord Activityとして複数人で遊べる、タスクバー風UIの協力�
 
 ## 必要環境
 
-- Node.js 22.12以降
-- npm 10以降
+- Node.js 24（`.node-version`を正本とする。Node.js 22は22.13以降のみ対応）
+- npm 12.0.1（`packageManager`を正本とする）
 - Cloudflareアカウント（クラウドへデプロイする場合）
 - Discord Developer Application（Discord内で動かす場合）
 
 ## ローカルセットアップ
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
 cp apps/activity/.dev.vars.example apps/activity/.dev.vars
 npm run dev
@@ -64,7 +64,8 @@ npm run dev
 npm run check
 npm run agent:inspect
 npm run agent:smoke
-npm run agent:verify
+npm run agent:verify -- .ai/tasks/my-task.json
+npm run check:dependencies
 npm run build
 npm run cf:typegen
 npm run db:migrate:local
@@ -82,7 +83,7 @@ npm run agent:inspect -- .ai/tasks/my-task.json
 npm run agent:verify -- .ai/tasks/my-task.json
 ```
 
-依存方向、ゲームコアの決定性、変更可能パス、型検査、テスト、ビルドが一括検査され、`.artifacts/agent/`へ結果が出力されます。
+依存方向、ゲームコアの決定性、変更可能パス、依存監査、型検査、テスト、ビルドが一括検査され、`.artifacts/agent/`へ結果が出力されます。CIではbase revisionからのコミット済み差分と作業ツリーの両方を検査するため、クリーンcheckoutでも`allowedPaths`／`forbiddenPaths`が有効です。
 
 ## 環境
 
@@ -96,7 +97,7 @@ CloudflareのIDやDiscord Client IDはサンプル値です。`apps/activity/wra
 
 ## 依存関係の固定
 
-初回の`npm install`で生成される`package-lock.json`は、変更内容を確認してリポジトリへコミットしてください。Staging／Productionのデプロイワークフローはlockfileがない場合に停止します。
+`package-lock.json`、npm 12.0.1、依存パッケージのinstall script許可リストを固定しています。通常は`npm ci`を使用してください。依存更新後は`npm run check:dependencies`で依存木、high以上の脆弱性、未審査install scriptがないことを確認します。
 
 ## ドキュメント
 

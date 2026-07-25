@@ -8,27 +8,44 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AGENT_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: 22
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
       - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci --no-fund
-          else
-            npm install --no-fund
-          fi
+        run: npm ci --no-fund
+      - name: Select changed AI task contract
+        id: task
+        run: node scripts/agent/select-task.mjs --base "$AGENT_BASE_REF" --github-output "$GITHUB_OUTPUT"
       - name: AI harness verification
-        run: npm run agent:verify
+        env:
+          TASK_FILE: ${{ steps.task.outputs.file }}
+        run: |
+          if [ -n "$TASK_FILE" ]; then
+            npm run agent:verify -- "$TASK_FILE" --base "$AGENT_BASE_REF"
+          else
+            npm run agent:verify -- --allow-no-task --base "$AGENT_BASE_REF"
+          fi
       - name: Upload verification report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: agent-verification
           path: .artifacts/agent/

@@ -23,6 +23,8 @@
 
 秘密情報と生のトークンは記録しません。
 
+HTTPログの`route`は既知のテンプレートへ正規化し、Room IDを含む生pathは記録しません。WebSocket close reasonは外部入力なので本文を記録せず長さだけを記録します。Workers Logsは有効化し、全ログを収集しつつtraceはサンプリングします。
+
 ## 主要指標
 
 - アクティブルーム数
@@ -76,3 +78,5 @@
 - `APP_ENV`が対象環境と一致
 - Local AuthがStaging／Productionで無効
 - 対応プロトコルとクライアントの互換性を確認
+- `npm run deploy:preflight -- <environment>`が副作用前に成功
+- npm依存木、脆弱性、install script許可リストが検証済み

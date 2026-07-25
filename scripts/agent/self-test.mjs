@@ -1,6 +1,6 @@
-import { appendFile, cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { appendFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { repositoryRoot } from "./lib.mjs";
 
@@ -14,10 +14,15 @@ try {
   });
 
   expectStatus(runNode("scripts/agent/check-architecture.mjs"), 0, "baseline architecture");
+  expectStatus(runNode("scripts/check-no-any.mjs"), 0, "baseline type-safety escapes");
   expectStatus(runNode("scripts/assets/validate.mjs"), 0, "baseline asset registry");
   await withRestoredFile("packages/game-core/src/random.ts", async (path) => {
     await appendFile(path, "\nMath.random();\n");
     expectFailure(runNode("scripts/agent/check-architecture.mjs"), "forbidden random access");
+  });
+  await withRestoredFile("packages/game-core/src/random.ts", async (path) => {
+    await appendFile(path, "\nconst unsafe = 1 as unknown as string;\n");
+    expectFailure(runNode("scripts/check-no-any.mjs"), "unsafe double assertion");
   });
 
   expectStatus(runNode("scripts/agent/generate-repo-map.mjs", ["--check"]), 0, "baseline map");
@@ -47,8 +52,25 @@ try {
   await rm(join(copyRoot, ".ai/tasks/invalid.json"));
 
   initializeGitRepository();
+  expectStatus(runNode("scripts/agent/create-task.mjs", ["selection-task"]), 0, "selection task");
+  const selectedTask = runNode("scripts/agent/select-task.mjs");
+  expectStatus(selectedTask, 0, "automatic task selection");
+  if (selectedTask.stdout.trim() !== ".ai/tasks/selection-task.json") {
+    throw new Error(`automatic task selection returned: ${selectedTask.stdout.trim()}`);
+  }
+  await rm(join(copyRoot, ".ai/tasks/selection-task.json"));
+  await writeFile(join(copyRoot, ".ai/tasks/Invalid Task.json"), "{}\n");
+  expectFailure(runNode("scripts/agent/select-task.mjs"), "invalid task path selection");
+  await rm(join(copyRoot, ".ai/tasks/Invalid Task.json"));
+  await withRestoredFile(".ai/tasks/harden-project-foundation.json", async (path) => {
+    await rm(path);
+    expectFailure(runNode("scripts/agent/select-task.mjs"), "deleted task selection");
+  });
+
   const privateAsset =
     ".local/assets/packs/tiny-rpg-soldier-orc/2.0/Characters(100x100 split)/Soldier/Soldier/Soldier_Idle.png";
+  await mkdir(dirname(join(copyRoot, privateAsset)), { recursive: true });
+  await writeFile(join(copyRoot, privateAsset), "private asset policy fixture");
   const forceAdd = spawnSync("git", ["add", "-f", privateAsset], {
     cwd: copyRoot,
     encoding: "utf8",
@@ -66,6 +88,23 @@ try {
     0,
     "allowed task scope",
   );
+
+  const baseRef = gitOutput(["rev-parse", "HEAD"]).trim();
+  gitOutput(["add", "docs/AI_CODING_HARNESS.md"]);
+  gitOutput(["commit", "--quiet", "-m", "allowed committed change"]);
+  expectStatus(
+    runNode("scripts/agent/check-task-scope.mjs", [".ai/task.template.json", "--base", baseRef]),
+    0,
+    "committed task scope",
+  );
+
+  gitOutput(["mv", ".github/workflows/deploy-production.yml", "docs/deploy-production.yml"]);
+  expectFailure(
+    runNode("scripts/agent/check-task-scope.mjs", [".ai/task.template.json"]),
+    "forbidden rename source scope",
+  );
+  gitOutput(["mv", "docs/deploy-production.yml", ".github/workflows/deploy-production.yml"]);
+
   await appendFile(
     join(copyRoot, ".github/workflows/deploy-production.yml"),
     "\n# Forbidden scope self-test\n",
@@ -78,6 +117,16 @@ try {
   console.log("AI harness self-test passed.");
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });
+}
+
+function gitOutput(argumentsList) {
+  const result = spawnSync("git", argumentsList, {
+    cwd: copyRoot,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  expectStatus(result, 0, `git ${argumentsList.join(" ")}`);
+  return result.stdout ?? "";
 }
 
 function runNode(script, argumentsList = []) {

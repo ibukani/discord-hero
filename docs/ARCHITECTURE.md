@@ -74,7 +74,8 @@ HTTP／WebSocket／Queue／永続スナップショットの境界スキーマ�
 - 短命なルームチケット発行
 - Durable Objectへのルーティング
 - ヘルスチェック
-- レート／サイズ制限
+- 認証・チケット・WebSocket入口のRate Limiting bindingとサイズ制限
+- Wrangler生成binding型とZodによる実行時環境検証
 
 ### GameRoom Durable Object
 
@@ -160,6 +161,7 @@ Local Platform Bridgeが開発ユーザーを作成します。ローカル認�
 
 - Hibernation APIで接続を受理
 - 添付データに接続ユーザー情報を保存
+- 休止復帰時は検証済み添付データからRoom IDを復元
 - メッセージは受信直後にスキーマ検証
 - `actionId`で再送コマンドを重複排除
 - `serverSequence`で順序を明示
@@ -186,6 +188,8 @@ Durable Object Storageへ以下の区切りでチェックポイントを保存�
 - production
 
 Discord Application、D1、Durable Object namespace、Queue、秘密情報を環境ごとに分離します。本番バインディングをローカルやStagingから参照しません。
+
+Rate Limiting namespaceも環境ごとに分けます。`wrangler.jsonc`をbindingの正本とし、`wrangler types`の生成結果をコミットして、設定とWorker型のずれをCIで拒否します。
 
 ## 機械的な境界検査
 

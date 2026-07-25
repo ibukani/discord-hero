@@ -1,14 +1,14 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
 import { isRecord, readJson, repositoryRoot } from "./lib.mjs";
+import { baseReference, collectChangedFiles } from "./git-changes.mjs";
 
 const metadata = await readJson(join(repositoryRoot, ".ai/repository-metadata.json"));
 if (!isRecord(metadata) || !Array.isArray(metadata.packages)) {
   throw new Error("Invalid repository metadata");
 }
 
-const changedFiles = gitChangedFiles();
+const changedFiles = collectChangedFiles({ baseRef: baseReference() });
 const matchedPackages = metadata.packages
   .filter(isRecord)
   .filter((entry) => {
@@ -54,19 +54,4 @@ function selectedTaskFile() {
   return configured === undefined || configured.length === 0
     ? ".ai/task.template.json"
     : configured;
-}
-
-function gitChangedFiles() {
-  const result = spawnSync("git", ["status", "--short"], {
-    cwd: repositoryRoot,
-    encoding: "utf8",
-  });
-  if (result.status !== 0 || typeof result.stdout !== "string") {
-    return [];
-  }
-  return result.stdout
-    .split("\n")
-    .map((line) => line.slice(3).trim())
-    .filter((line) => line.length > 0)
-    .sort((left, right) => left.localeCompare(right));
 }

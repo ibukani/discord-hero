@@ -1,11 +1,15 @@
 import { DEFAULT_CONTENT } from "@discord-hero/content";
 import { HERO_CLASS_IDS } from "@discord-hero/game-core";
 import type { HeroClassIdDto } from "@discord-hero/protocol";
-import { useEffect, useMemo, useReducer, useRef, type JSX } from "react";
+import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, type JSX } from "react";
 import { RoomSocket } from "./network/RoomSocket.js";
 import { createPlatformBridge, type PlatformBridge } from "./platform/index.js";
-import { GameCanvas } from "./render/GameCanvas.js";
 import { appReducer, INITIAL_APP_STATE } from "./state/app-state.js";
+
+const GameCanvas = lazy(async () => {
+  const module = await import("./render/GameCanvas.js");
+  return { default: module.GameCanvas };
+});
 
 const CLASS_LABELS: Readonly<Record<HeroClassIdDto, string>> = {
   guardian: "ガーディアン",
@@ -110,7 +114,9 @@ export function App(): JSX.Element {
         </section>
       ) : null}
 
-      <GameCanvas snapshot={state.snapshot} currentPlayerId={state.playerId} />
+      <Suspense fallback={<section className="battle-stage">戦闘表示を読み込んでいます。</section>}>
+        <GameCanvas snapshot={state.snapshot} currentPlayerId={state.playerId} />
+      </Suspense>
 
       <section className="dashboard-grid">
         <section className="panel">

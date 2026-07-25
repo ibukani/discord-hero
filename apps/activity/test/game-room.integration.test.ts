@@ -85,6 +85,48 @@ describe("GameRoom integration", () => {
 
     secondSocket.close(1000, "test complete");
   });
+
+  it("restores room identity while a WebSocket hibernates", async () => {
+    const roomId = "integration-room-hibernation";
+    const stub = roomStub(roomId);
+    const ticket = await createRoomTicket(roomId, "player-one", "Player One");
+    const response = await connect(stub, roomId, ticket);
+    const socket = requireWebSocket(response);
+    socket.accept();
+
+    const firstWelcomePromise = nextMessage(socket, (message) => message.type === "welcome");
+    socket.send(
+      JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "hello",
+        actionId: "hello-before-hibernation",
+        classId: "guardian",
+        lastServerSequence: null,
+      }),
+    );
+    await firstWelcomePromise;
+
+    await evictDurableObject(stub, { webSockets: "hibernate" });
+
+    const restoredWelcomePromise = nextMessage(socket, (message) => message.type === "welcome");
+    socket.send(
+      JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "hello",
+        actionId: "hello-after-hibernation",
+        classId: "guardian",
+        lastServerSequence: null,
+      }),
+    );
+    const restoredWelcome = await restoredWelcomePromise;
+    expect(restoredWelcome.type).toBe("welcome");
+    if (restoredWelcome.type !== "welcome") {
+      throw new Error("Expected welcome message after hibernation");
+    }
+    expect(restoredWelcome.roomId).toBe(roomId);
+
+    socket.close(1000, "test complete");
+  });
 });
 
 function roomStub(roomId: string): DurableObjectStub<GameRoom> {

@@ -1,12 +1,16 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { baseReference } from "./git-changes.mjs";
 import { isRecord, pathExists, readJson, repositoryRoot } from "./lib.mjs";
 
 const staticOnly = process.argv.includes("--static-only");
+const allowNoTask = process.argv.includes("--allow-no-task");
+const baseRef = baseReference();
 const nodeModulesPresent = await pathExists(join(repositoryRoot, "node_modules"));
 const taskFile = selectedTaskFile();
 const taskArgument = taskFile === null ? [] : [taskFile];
+const scopeArguments = [...taskArgument, ...(baseRef === null ? [] : ["--base", baseRef])];
 const task = await readTaskForReport(taskFile);
 const requiredChecks = taskRequiredChecks(task);
 const acceptanceCriteria = taskAcceptanceCriteria(task);
@@ -14,11 +18,22 @@ const checks = [
   command("type-safety escapes", "node", ["scripts/check-no-any.mjs"]),
   command("architecture boundaries", "node", ["scripts/agent/check-architecture.mjs"]),
   command("task contract", "node", ["scripts/agent/validate-task.mjs", ...taskArgument]),
-  command("task scope", "node", ["scripts/agent/check-task-scope.mjs", ...taskArgument]),
+  command("task scope", "node", ["scripts/agent/check-task-scope.mjs", ...scopeArguments]),
   command("repository map", "node", ["scripts/agent/generate-repo-map.mjs", "--check"]),
   command("asset registry", "node", ["scripts/assets/validate.mjs"]),
   command("harness self-test", "node", ["scripts/agent/self-test.mjs"]),
 ];
+
+if (taskFile === null && !allowNoTask) {
+  checks.unshift({
+    name: "task selection",
+    status: "failed",
+    durationMs: 0,
+    command: "npm run agent:verify -- .ai/tasks/<task-id>.json",
+    output:
+      "AI verification requires an explicit task contract. Human-authored changes may use npm run check, or CI may pass --allow-no-task.",
+  });
+}
 
 if (!staticOnly) {
   if (!nodeModulesPresent) {
@@ -32,6 +47,8 @@ if (!staticOnly) {
     });
   } else {
     checks.push(command("format", npmCommand(), ["run", "format:check"]));
+    checks.push(command("dependency policy", npmCommand(), ["run", "check:dependencies"]));
+    checks.push(command("Cloudflare generated types", npmCommand(), ["run", "check:cf-types"]));
     checks.push(command("lint", npmCommand(), ["run", "lint"]));
     checks.push(command("typecheck", npmCommand(), ["run", "typecheck"]));
     checks.push(command("tests", npmCommand(), ["run", "test"]));
@@ -51,6 +68,7 @@ const report = {
   generatedAt: new Date().toISOString(),
   mode: staticOnly ? "static-only" : "full",
   taskFile,
+  baseRef,
   requiredChecks: [...requiredChecks],
   acceptanceCriteria,
   status: failed.length === 0 ? "passed" : "failed",
@@ -169,6 +187,7 @@ function renderMarkdown(report) {
     `- Mode: \`${report.mode}\``,
     `- Generated: \`${report.generatedAt}\``,
     `- Task: ${report.taskFile === null ? "not specified" : `\`${report.taskFile}\``}`,
+    `- Base ref: ${report.baseRef === null ? "working tree only" : `\`${report.baseRef}\``}`,
     "",
     "## Declared task requirements",
     "",

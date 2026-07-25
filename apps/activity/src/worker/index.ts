@@ -16,9 +16,16 @@ import {
   type SessionClaims,
 } from "./auth/tokens.js";
 import { GameRoom } from "./durable-objects/GameRoom.js";
-import type { Env } from "./env.js";
+import { assertRuntimeEnv, type RuntimeEnv } from "./env.js";
 import { HttpBodyError, readJsonBody } from "./http/body.js";
-import { bearerToken, isLocalHost, requestId } from "./http/request.js";
+import {
+  bearerToken,
+  isLocalHost,
+  rateLimitKey,
+  requestId,
+  requestRouteLabel,
+  requiresEntryRateLimit,
+} from "./http/request.js";
 import { errorResponse, jsonResponse, withSecurityHeaders } from "./http/responses.js";
 import { createLogger, normalizeError } from "./observability/logger.js";
 import { upsertPlayer } from "./persistence/player-repository.js";
@@ -27,8 +34,21 @@ import { consumeMatchResults } from "./queue/consumer.js";
 export { GameRoom };
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Cloudflare.Env): Promise<Response> {
     const id = requestId(request);
+    try {
+      assertRuntimeEnv(env);
+    } catch {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          event: "runtime_environment_rejected",
+          requestId: id,
+        }),
+      );
+      return errorResponse(500, "internal_error", "Internal server error", id);
+    }
+
     const logger = createLogger(env.APP_ENV);
     const startedAt = performance.now();
 
@@ -40,7 +60,7 @@ export default {
         durationMs: performance.now() - startedAt,
         details: {
           method: request.method,
-          path: new URL(request.url).pathname,
+          route: requestRouteLabel(request),
           status: response.status,
         },
       });
@@ -52,7 +72,10 @@ export default {
         requestId: id,
         durationMs: performance.now() - startedAt,
         errorCode: normalized.name,
-        details: { message: normalized.message },
+        details: {
+          method: request.method,
+          route: requestRouteLabel(request),
+        },
       });
 
       if (error instanceof HttpBodyError || error instanceof z.ZodError) {
@@ -62,12 +85,13 @@ export default {
     }
   },
 
-  async queue(batch: MessageBatch, env: Env): Promise<void> {
+  async queue(batch: MessageBatch, env: Cloudflare.Env): Promise<void> {
+    assertRuntimeEnv(env);
     await consumeMatchResults(batch, env);
   },
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<Cloudflare.Env>;
 
-async function routeRequest(request: Request, env: Env, id: string): Promise<Response> {
+async function routeRequest(request: Request, env: RuntimeEnv, id: string): Promise<Response> {
   const url = new URL(request.url);
 
   if (request.method === "GET" && url.pathname === "/api/health") {
@@ -80,8 +104,15 @@ async function routeRequest(request: Request, env: Env, id: string): Promise<Res
     );
   }
 
+  if (requiresEntryRateLimit(request)) {
+    const rateLimit = await env.AUTH_RATE_LIMITER.limit({ key: rateLimitKey(request) });
+    if (!rateLimit.success) {
+      return errorResponse(429, "rate_limited", "Too many requests", id);
+    }
+  }
+
   if (request.method === "POST" && url.pathname === "/api/auth/discord/exchange") {
-    return handleDiscordAuth(request, env, id);
+    return handleDiscordAuth(request, env);
   }
 
   if (request.method === "POST" && url.pathname === "/api/auth/local") {
@@ -104,11 +135,7 @@ async function routeRequest(request: Request, env: Env, id: string): Promise<Res
   return withSecurityHeaders(assetResponse);
 }
 
-async function handleDiscordAuth(request: Request, env: Env, id: string): Promise<Response> {
-  if (env.APP_ENV === "local" && env.DISCORD_CLIENT_SECRET.length === 0) {
-    return errorResponse(503, "internal_error", "Discord authentication is not configured", id);
-  }
-
+async function handleDiscordAuth(request: Request, env: RuntimeEnv): Promise<Response> {
   const input = DiscordTokenExchangeRequestSchema.parse(await readJsonBody(request));
   const identity = await exchangeDiscordCode(
     input.code,
@@ -141,7 +168,7 @@ async function handleDiscordAuth(request: Request, env: Env, id: string): Promis
   );
 }
 
-async function handleLocalAuth(request: Request, env: Env, id: string): Promise<Response> {
+async function handleLocalAuth(request: Request, env: RuntimeEnv, id: string): Promise<Response> {
   if (env.APP_ENV !== "local" || env.ALLOW_LOCAL_AUTH !== "true" || !isLocalHost(request)) {
     return errorResponse(404, "not_found", "API route not found", id);
   }
@@ -174,7 +201,7 @@ async function handleLocalAuth(request: Request, env: Env, id: string): Promise<
   );
 }
 
-async function handleRoomTicket(request: Request, env: Env, id: string): Promise<Response> {
+async function handleRoomTicket(request: Request, env: RuntimeEnv, id: string): Promise<Response> {
   const token = bearerToken(request);
   if (token === null) {
     return errorResponse(401, "unauthorized", "Authentication required", id);
@@ -197,7 +224,7 @@ async function handleRoomTicket(request: Request, env: Env, id: string): Promise
   );
 }
 
-async function forwardRoomSocket(request: Request, env: Env, id: string): Promise<Response> {
+async function forwardRoomSocket(request: Request, env: RuntimeEnv, id: string): Promise<Response> {
   const match = /^\/api\/rooms\/([^/]+)\/socket$/u.exec(new URL(request.url).pathname);
   if (match?.[1] === undefined) {
     return errorResponse(400, "bad_request", "Invalid room path", id);

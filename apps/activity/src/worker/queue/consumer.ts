@@ -1,9 +1,9 @@
 import { MatchFinishedEventSchema } from "@discord-hero/protocol";
-import type { Env } from "../env.js";
+import type { RuntimeEnv } from "../env.js";
 import { createLogger, normalizeError } from "../observability/logger.js";
 import { persistMatchResult } from "../persistence/match-result-repository.js";
 
-export async function consumeMatchResults(batch: MessageBatch, env: Env): Promise<void> {
+export async function consumeMatchResults(batch: MessageBatch, env: RuntimeEnv): Promise<void> {
   const logger = createLogger(env.APP_ENV);
 
   for (const message of batch.messages) {

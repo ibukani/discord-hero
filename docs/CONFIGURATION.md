@@ -45,8 +45,15 @@ npm exec -- wrangler secret put SESSION_SIGNING_SECRET --env production
 - D1の`database_id`
 - Queue名
 - Worker名
+- `AUTH_RATE_LIMITER`のaccount内で一意な正整数`namespace_id`
 
 Durable Object、D1、Queueはlocal／staging／productionで共有しません。
+
+Worker binding型は`apps/activity/wrangler.jsonc`から生成します。binding、変数、必須Secretを変更したら、手書き型を追加せず次を実行して`worker-configuration.d.ts`をコミットしてください。
+
+```bash
+npm run cf:typegen
+```
 
 ## D1マイグレーション
 
@@ -95,4 +102,11 @@ npm run deploy:staging
 npm run deploy:production
 ```
 
-デプロイ前には、lockfile、CI、D1マイグレーション、Worker bindings、Secrets、Discord Client IDの対応を確認します。
+デプロイワークフローとデプロイスクリプトは、D1マイグレーションやアップロードより先にプリフライトを実行します。プリフライトはplaceholder／ゼロD1 ID、環境名、Local Auth、必須Secret宣言、対象Workerに登録済みのSecret名、DO・D1・Queue・DLQ binding、ViteとWorkerのDiscord Client ID一致、Cloudflare資格情報の存在を検査します。Secret値そのものは取得・表示しません。
+
+```bash
+npm run deploy:preflight -- staging
+npm run deploy:preflight -- production
+```
+
+リポジトリ内のstaging／production IDは初期状態ではplaceholderなので、実在値を設定するまでプリフライトは意図的に失敗します。

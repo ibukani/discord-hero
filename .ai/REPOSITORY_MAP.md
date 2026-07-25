@@ -58,7 +58,7 @@ Discord Activity向け協力型セミ放置ローグライトRPG
 - Path: `apps/activity`
 - Version: `0.1.0`
 - Responsibility: React/PixiJSクライアント、Worker API、Durable Object、D1、Queue
-- TypeScript files: 33
+- TypeScript files: 35
 - Entrypoints: `src/client/main.tsx`, `src/worker/index.ts`, `src/worker/durable-objects/GameRoom.ts`
 - Relevant changes: 画面、Discord連携、認証、ルーム同期、永続化
 

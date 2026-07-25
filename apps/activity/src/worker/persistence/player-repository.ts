@@ -6,7 +6,7 @@ export interface PlayerRecordInput {
 }
 
 export async function upsertPlayer(db: D1Database, input: PlayerRecordInput): Promise<void> {
-  await db
+  const playerStatement = db
     .prepare(
       `INSERT INTO players (id, discord_user_id, display_name, created_at, last_seen_at)
        VALUES (?1, ?2, ?3, ?4, ?4)
@@ -14,15 +14,15 @@ export async function upsertPlayer(db: D1Database, input: PlayerRecordInput): Pr
          display_name = excluded.display_name,
          last_seen_at = excluded.last_seen_at`,
     )
-    .bind(input.id, input.discordUserId, input.displayName, input.now)
-    .run();
+    .bind(input.id, input.discordUserId, input.displayName, input.now);
 
-  await db
+  const progressStatement = db
     .prepare(
       `INSERT INTO player_progress (player_id, updated_at)
        VALUES (?1, ?2)
        ON CONFLICT(player_id) DO NOTHING`,
     )
-    .bind(input.id, input.now)
-    .run();
+    .bind(input.id, input.now);
+
+  await db.batch([playerStatement, progressStatement]);
 }

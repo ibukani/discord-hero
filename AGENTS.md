@@ -83,6 +83,8 @@ Focused commands:
 
 ```bash
 npm run check:no-any
+npm run check:dependencies
+npm run check:cf-types
 npm run check:architecture
 npm run check:task-contract
 npm run check:task-scope
@@ -95,6 +97,8 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
+npm run deploy:preflight -- staging
+npm run deploy:preflight -- production
 ```
 
 Local database and Cloudflare environment types:
@@ -127,6 +131,7 @@ npm run cf:typegen
 
 - One canonical room key maps to one `GameRoom` Durable Object.
 - Use WebSocket Hibernation APIs for accepted sockets.
+- Restore per-connection identity from validated WebSocket attachments after hibernation.
 - Active combat may keep a timer running; lobby and decision states should be hibernation-eligible.
 - Durable Object memory is a cache. Persist checkpoints needed to recover after eviction or restart.
 - Do not write a snapshot every simulation tick.
@@ -159,10 +164,12 @@ npm run cf:typegen
 ## Deployment safeguards
 
 - Generate and commit `package-lock.json` before deploying.
+- Use the pinned Node.js/npm toolchain and keep npm install-script approvals version-specific.
 - Staging and production workflows must use `npm ci`.
 - Production deploys require a protected GitHub Environment or equivalent approval control.
 - Review D1 migrations separately from application code and preserve backward compatibility during rollout.
 - Never deploy with placeholder resource IDs or Discord Client IDs.
+- Run deployment preflight before D1 migrations or Worker uploads.
 
 ## Documentation policy
 
@@ -173,6 +180,7 @@ Update documentation when behavior, architecture, protocol, environment configur
 - AI-authored repository changes should have a task file derived from `.ai/task.template.json`.
 - The task must define concrete acceptance criteria and verification commands.
 - `allowedPaths` and `forbiddenPaths` are enforced against the current git working tree during `agent:verify`.
+- CI must also pass a base revision so committed changes in a clean checkout remain in scope.
 - Do not broaden allowed paths merely to make verification pass; update the task only when the scope genuinely changes.
 - The generated `.ai/REPOSITORY_MAP.md` must remain synchronized with package metadata.
 - Review `.artifacts/agent/verification.md` before declaring the task complete.

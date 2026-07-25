@@ -1,0 +1,79 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "harden-project-foundation",
+  "title": "Harden the monorepo foundation for AI-led production development",
+  "objective": "Make the repository safe and reproducible for AI-led development by enforcing task scope in clean CI checkouts, rejecting type-safety escapes, pinning and auditing the toolchain, validating Cloudflare deployment configuration, using generated Worker bindings with runtime environment validation, and covering recovery, persistence, and security-sensitive rejection paths with tests.",
+  "risk": "high",
+  "constraints": [
+    "AGENTS.mdの規約と既存の依存方向を維持する",
+    "明示的な型安全性の回避や未検証の外部入力を追加しない",
+    "ゲームルールとプロトコル互換性を変更しない",
+    "実在するCloudflare resource IDや秘密情報を仮定しない",
+    "既存のローカル、staging、production分離を維持する"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "AI task scope is enforced for both uncommitted work and committed CI diffs, and the harness self-test proves allowed, forbidden, renamed, base-ref, malformed-task, and deleted-task cases",
+      "verification": "npm run agent:harness:self-test"
+    },
+    {
+      "id": "AC-2",
+      "description": "Explicit any types, TypeScript suppression directives, and double-cast assertions are rejected, with all existing unsafe double casts removed",
+      "verification": "npm run check:no-any"
+    },
+    {
+      "id": "AC-3",
+      "description": "The pinned dependency graph installs with an explicit install-script allowlist, has no high-severity audit finding, and satisfies npm dependency integrity",
+      "verification": "npm run check:dependencies"
+    },
+    {
+      "id": "AC-4",
+      "description": "Cloudflare bindings come from Wrangler-generated types, runtime environment values are validated, and staging or production deployment fails before side effects when placeholders, local auth, secrets, or client IDs are invalid",
+      "verification": "npm run test --workspace @discord-hero/activity && npm run test:deployment-preflight"
+    },
+    {
+      "id": "AC-5",
+      "description": "Durable Object hibernation restores room identity, related player persistence writes are batched, and request or WebSocket logs do not include raw room paths or close reasons",
+      "verification": "npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-6",
+      "description": "Repository formatting, lint, typecheck, tests, build, local migration, and AI verification all pass with a reviewed verification report",
+      "verification": "npm run agent:verify -- .ai/tasks/harden-project-foundation.json"
+    }
+  ],
+  "requiredChecks": [
+    "format",
+    "lint",
+    "typecheck",
+    "test",
+    "build",
+    "agent-smoke",
+    "db-migrate-local"
+  ],
+  "allowedPaths": [
+    ".ai/**",
+    ".github/**",
+    ".node-version",
+    ".npmrc",
+    "AGENTS.md",
+    "README.md",
+    "apps/**",
+    "docs/**",
+    "package-lock.json",
+    "package.json",
+    "packages/**",
+    "scripts/**"
+  ],
+  "forbiddenPaths": [
+    ".dev.vars",
+    ".env",
+    ".env.*",
+    ".local/**",
+    "assets/repository-lfs/**",
+    "migrations/**"
+  ],
+  "notes": "The task intentionally covers repository harness, CI, dependency policy, Worker boundary validation, and deployment preflight because they jointly determine whether future AI-authored changes can be trusted. Placeholder production resource values remain configuration inputs; the new preflight must reject them rather than fabricate replacements."
+}

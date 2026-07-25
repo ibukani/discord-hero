@@ -25,7 +25,9 @@ npm run agent:task -- my-task
 npm run agent:inspect -- .ai/tasks/my-task.json
 ```
 
-タスク契約が指定されている場合、検証時に変更ファイルが`allowedPaths`内にあり、`forbiddenPaths`へ一致しないことも確認します。`requiredChecks`には`typecheck`、`test`、`build`など、スキーマで定義された検査IDだけを指定します。
+AI検証ではタスク契約の明示指定が必須です。変更ファイルが`allowedPaths`内にあり、`forbiddenPaths`へ一致しないことを確認します。`requiredChecks`には`typecheck`、`test`、`build`など、スキーマで定義された検査IDだけを指定します。
+
+スコープ検査は、未コミット差分、staging済み差分、未追跡ファイルを常に対象にします。`--base <git-ref>`または`AGENT_BASE_REF`を指定すると、base revisionから`HEAD`までのコミット済み差分も加わります。renameでは移動元と移動先の両方を検査します。CIはPR base SHAまたはpush前SHAを渡し、変更範囲内にタスク契約が1件だけあれば自動選択します。タスク契約の削除、不正なファイル名、複数契約の同時変更は選択エラーとして拒否します。人間がタスク契約なしで変更する場合は`npm run check`を使用します。
 
 ## 検証コマンド
 
@@ -35,7 +37,7 @@ npm run agent:map
 npm run agent:inspect
 npm run agent:smoke
 npm run agent:harness:self-test
-npm run agent:verify
+npm run agent:verify -- .ai/tasks/my-task.json
 ```
 
 `agent:verify`は次を順番に実行します。
@@ -45,16 +47,18 @@ npm run agent:verify
 3. タスク契約と変更範囲の検査
 4. リポジトリマップの同期確認
 5. 違反注入によるハーネス自己テスト
-6. Prettier
-7. ESLint
-8. TypeScript型検査
-9. 単体・統合テスト
-10. 本番ビルド
+6. npmバージョン、依存木、脆弱性、install script許可の検査
+7. Wrangler生成型の同期検査
+8. Prettier
+9. ESLint
+10. TypeScript型検査
+11. 単体・Workers runtime統合テスト
+12. 本番ビルド
 
 依存関係をまだ導入できない環境では、次のコマンドでNode.js標準機能だけを使う検査を実行できます。
 
 ```bash
-npm run agent:verify:static
+npm run agent:verify:static -- .ai/tasks/my-task.json
 ```
 
 完全検証ではありません。最終判定には`npm run agent:verify`が必要です。
@@ -85,6 +89,12 @@ npm run agent:verify:static
 - Zod検証済み通信メッセージ生成
 
 Activityの統合テストではWorkers Vitest Integrationを使い、実際のDurable Objectバインディング上でWebSocket認証、チケット再利用拒否、チェックポイント復旧を検証します。
+
+## 型安全性と依存関係
+
+`check:no-any`は`.d.ts`以外のTypeScriptにある明示的`any`、`@ts-ignore`／`@ts-nocheck`／`@ts-expect-error`、`as unknown as`二重キャストを拒否します。Worker binding型は`wrangler types`が生成する`worker-configuration.d.ts`を正本とし、手書きのbinding interfaceは置きません。
+
+`check:dependencies`は固定npmバージョン、`npm ls`、high以上の`npm audit`、npm 12の`allowScripts`未審査項目を検査します。依存更新で`esbuild`や`workerd`のバージョンが変わった場合は、install scriptを確認してから許可リストを更新します。
 
 ## 検証レポート
 

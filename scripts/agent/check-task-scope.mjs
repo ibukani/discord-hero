@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
+import { baseReference, collectChangedFiles } from "./git-changes.mjs";
 import { isRecord, readJson, relativeToRoot, repositoryRoot } from "./lib.mjs";
 
 const configuredPath = process.env.AGENT_TASK_FILE?.trim() || undefined;
@@ -21,7 +21,8 @@ if (!isRecord(task) || !Array.isArray(task.allowedPaths) || !Array.isArray(task.
 
 const allowedPatterns = task.allowedPaths.filter((value) => typeof value === "string");
 const forbiddenPatterns = task.forbiddenPaths.filter((value) => typeof value === "string");
-const changedFiles = readChangedFiles();
+const baseRef = baseReference();
+const changedFiles = collectChangedFiles({ baseRef });
 const violations = [];
 
 for (const file of changedFiles) {
@@ -40,26 +41,8 @@ if (violations.length > 0) {
   console.error(violations.map((violation) => `- ${violation}`).join("\n"));
   process.exitCode = 1;
 } else {
-  console.log(`Task scope valid for ${changedFiles.length} changed files.`);
-}
-
-function readChangedFiles() {
-  const result = spawnSync("git", ["status", "--short", "--untracked-files=all"], {
-    cwd: repositoryRoot,
-    encoding: "utf8",
-  });
-  if (result.status !== 0 || typeof result.stdout !== "string") {
-    console.warn("Git status is unavailable; no changed files were checked.");
-    return [];
-  }
-
-  return result.stdout
-    .split("\n")
-    .map((line) => line.slice(3).trim())
-    .filter((line) => line.length > 0)
-    .map((line) => (line.includes(" -> ") ? (line.split(" -> ").at(-1) ?? line) : line))
-    .map((line) => line.replaceAll("\\", "/"))
-    .sort((left, right) => left.localeCompare(right));
+  const source = baseRef === null ? "working tree" : `${baseRef}...HEAD and working tree`;
+  console.log(`Task scope valid for ${changedFiles.length} changed files from ${source}.`);
 }
 
 function globMatches(pattern, value) {
