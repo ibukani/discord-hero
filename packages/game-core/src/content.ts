@@ -97,6 +97,17 @@ export interface UpgradeDefinition {
 
 export type RewardOutcome = "victory" | "return" | "defeat";
 
+export type UnlockCondition =
+  | { readonly type: "match_outcome"; readonly outcome: RewardOutcome }
+  | { readonly type: "account_level"; readonly minimum: number };
+
+export interface UnlockDefinition {
+  readonly id: string;
+  readonly unlockType: string;
+  readonly contentId: string;
+  readonly condition: UnlockCondition;
+}
+
 export interface RewardPolicy {
   readonly currencyBaseByOutcome: Readonly<Record<RewardOutcome, number>>;
   readonly experienceBaseByOutcome: Readonly<Record<RewardOutcome, number>>;
@@ -116,5 +127,6 @@ export interface GameContent {
   readonly enemies: Readonly<Record<string, EnemyDefinition>>;
   readonly upgrades: Readonly<Record<string, UpgradeDefinition>>;
   readonly rewardPolicy: RewardPolicy;
+  readonly unlocks: Readonly<Record<string, UnlockDefinition>>;
   readonly stage: StageDefinition;
 }

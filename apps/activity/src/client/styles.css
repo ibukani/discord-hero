@@ -968,6 +968,124 @@ button:disabled {
   font-size: 0.76rem;
 }
 
+.account-progress-card {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 12px;
+  padding: 10px;
+  background: linear-gradient(135deg, rgba(43, 103, 130, 0.2), transparent 52%), #101a2a;
+  border: 2px solid #3d6380;
+  box-shadow: inset 2px 2px 0 rgba(172, 224, 245, 0.08);
+}
+
+.account-progress-heading,
+.account-progress-meter-label,
+.account-progress-footer,
+.account-unlock-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.account-progress-heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.account-progress-heading .eyebrow {
+  color: #6fa7bd;
+  font-size: 0.58rem;
+}
+
+.account-progress-heading strong {
+  color: #dceffc;
+  font-size: 0.8rem;
+}
+
+.account-level-badge {
+  padding: 4px 7px;
+  color: #b8f0d0;
+  background: #143628;
+  border: 1px solid #4c9a72;
+  font-family: var(--font-pixel-heading);
+  font-size: 0.64rem;
+}
+
+.account-progress-meter {
+  display: grid;
+  gap: 5px;
+}
+
+.account-progress-meter-label {
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+}
+
+.account-progress-meter-label strong {
+  color: #d6e9f7;
+  font-size: 0.68rem;
+}
+
+.account-progress-track {
+  height: 7px;
+  overflow: hidden;
+  background: #080e18;
+  border: 1px solid #2f4a65;
+}
+
+.account-progress-track i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #45b7d4, #8de6c0);
+  box-shadow: 0 0 8px rgba(69, 183, 212, 0.35);
+}
+
+.account-progress-footer {
+  justify-content: flex-start;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+}
+
+.account-progress-footer strong {
+  margin-right: auto;
+  color: #ffe697;
+  font-size: 0.78rem;
+}
+
+.account-unlock-row {
+  align-items: flex-start;
+  padding-top: 7px;
+  border-top: 1px solid #29435e;
+}
+
+.account-unlock-row > span {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+}
+
+.account-unlock-row > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.account-unlock-row small {
+  padding: 3px 5px;
+  color: #c5e5f3;
+  background: #172b3c;
+  border: 1px solid #3c6b81;
+  font-size: 0.64rem;
+}
+
+.account-progress-loading {
+  margin: 10px 0 12px;
+  padding: 10px;
+  border: 1px dashed #35516b;
+}
+
 .build-icon {
   display: grid;
   place-items: center;
@@ -1516,6 +1634,53 @@ button:disabled {
 
 .result-reward-panel strong {
   font-size: 0.92rem;
+}
+
+.result-unlock-panel {
+  width: min(680px, 100%);
+  display: grid;
+  gap: 8px;
+  margin: -4px 0 14px;
+  padding: 10px;
+  text-align: left;
+  background: linear-gradient(135deg, rgba(255, 217, 105, 0.14), transparent 45%), #1b1b27;
+  border: 2px solid #d0a84f;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 243, 190, 0.16),
+    0 0 18px rgba(255, 207, 64, 0.1);
+}
+
+.unlock-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.unlock-heading span {
+  color: #e8c96a;
+  font-family: var(--font-pixel-heading);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+}
+
+.unlock-heading strong {
+  color: #fff1b0;
+  font-size: 0.82rem;
+}
+
+.unlock-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.unlock-chip {
+  padding: 6px 9px;
+  color: #fff0ad;
+  background: #3a2e19;
+  border: 1px solid #a68135;
+  font-size: 0.78rem;
 }
 
 .result-party {

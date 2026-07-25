@@ -29,6 +29,7 @@ const StoredPlayerStateSchema = z.object({
   rescueDurationMultiplier: z.number().positive().default(1),
   waveShieldBonus: z.number().int().nonnegative().default(0),
   activeSynergyIds: z.array(SafeIdSchema).max(16).default([]),
+  unlockedContentIds: z.array(SafeIdSchema).max(128).default([]),
   level: z.number().int().positive(),
   experience: z.number().int().nonnegative(),
   nextLevelExperience: z.number().int().positive(),

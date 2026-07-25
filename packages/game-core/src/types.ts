@@ -52,6 +52,12 @@ export interface PlayerLoadout {
   accessoryId: string | null;
 }
 
+export interface PlayerProfile {
+  readonly loadout: PlayerLoadout | null;
+  readonly automation: AutomationPolicy | null;
+  readonly unlockedContentIds: readonly string[];
+}
+
 export interface PlayerCombatStats {
   damageDealt: number;
   healingDone: number;
@@ -78,6 +84,7 @@ export interface PlayerState {
   rescueDurationMultiplier: number;
   waveShieldBonus: number;
   activeSynergyIds: string[];
+  unlockedContentIds: string[];
   level: number;
   experience: number;
   nextLevelExperience: number;
@@ -111,6 +118,7 @@ export interface MatchResult {
   readonly durationMs: number;
   readonly completedAtTick: number;
   readonly rewards: Readonly<Record<string, MatchReward>>;
+  readonly unlocks: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface MatchReward {
@@ -146,6 +154,7 @@ export type GameCommand =
       readonly playerId: PlayerId;
       readonly displayName: string;
       readonly classId: HeroClassId;
+      readonly profile?: PlayerProfile;
     }
   | {
       readonly type: "set_ready";

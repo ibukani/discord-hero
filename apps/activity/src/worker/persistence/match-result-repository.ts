@@ -1,3 +1,4 @@
+import { CURRENT_CONTENT } from "@discord-hero/content";
 import type { MatchFinishedEvent } from "@discord-hero/protocol";
 
 export async function persistMatchResult(
@@ -84,6 +85,53 @@ export async function persistMatchResult(
         )
         .bind(reward.experience, reward.currency, event.endedAt, player.playerId),
     );
+
+    for (const unlockId of event.result.unlocks[player.playerId] ?? []) {
+      const unlock = CURRENT_CONTENT.unlocks[unlockId];
+      if (unlock === undefined) {
+        continue;
+      }
+      if (
+        unlock.condition.type !== "match_outcome" ||
+        unlock.condition.outcome !== event.result.outcome
+      ) {
+        continue;
+      }
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO unlocks (player_id, unlock_type, content_id, unlocked_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(player_id, unlock_type, content_id) DO NOTHING`,
+          )
+          .bind(player.playerId, unlock.unlockType, unlock.contentId, event.endedAt),
+      );
+    }
+
+    for (const unlock of Object.values(CURRENT_CONTENT.unlocks)) {
+      if (unlock.condition.type !== "account_level") {
+        continue;
+      }
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO unlocks (player_id, unlock_type, content_id, unlocked_at)
+             SELECT ?1, ?2, ?3, ?4
+             WHERE EXISTS (
+               SELECT 1 FROM player_progress
+               WHERE player_id = ?1 AND account_level >= ?5
+             )
+             ON CONFLICT(player_id, unlock_type, content_id) DO NOTHING`,
+          )
+          .bind(
+            player.playerId,
+            unlock.unlockType,
+            unlock.contentId,
+            event.endedAt,
+            unlock.condition.minimum,
+          ),
+      );
+    }
   }
 
   statements.push(

@@ -5,10 +5,7 @@
   "title": "途中参加のサーバー権威基盤",
   "objective": "実行中のルームへ新規参加したプレイヤーへ保存済みプロフィールを適用し、パーティー進行度に合わせた決定論的な初期強化を与える基盤を追加する。",
   "risk": "medium",
-  "constraints": [
-    "AGENTS.mdの規約を維持する",
-    "明示的な型安全性の回避を追加しない"
-  ],
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
   "acceptanceCriteria": [
     {
       "id": "AC-1",
@@ -31,21 +28,8 @@
       "verification": "npm run check:architecture && npm run typecheck && npm run build"
     }
   ],
-  "requiredChecks": [
-    "typecheck",
-    "test",
-    "build"
-  ],
-  "allowedPaths": [
-    "apps/**",
-    "packages/**",
-    "docs/**",
-    "scripts/**",
-    ".ai/**",
-    "README.md"
-  ],
-  "forbiddenPaths": [
-    ".github/workflows/deploy-production.yml"
-  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": ["apps/**", "packages/**", "docs/**", "scripts/**", ".ai/**", "README.md"],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
   "notes": "必要に応じて変更理由、互換性、運用上の注意を記載する。"
 }

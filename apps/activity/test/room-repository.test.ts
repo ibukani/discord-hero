@@ -114,6 +114,7 @@ function createFinishedEvent(): MatchFinishedEvent {
       durationMs: 60_000,
       completedAtTick: 600,
       rewards: {},
+      unlocks: {},
     },
     players: [],
   };

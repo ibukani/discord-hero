@@ -24,6 +24,7 @@ import type {
   ProgressPolicy,
   PlayerState,
   PlayerLoadout,
+  PlayerProfile,
   RescuePolicy,
   RetreatPolicy,
   StepResult,
@@ -171,6 +172,7 @@ function executeCommand(
         command.displayName,
         command.classId,
         content,
+        command.profile,
         events,
       );
     case "set_ready":
@@ -225,6 +227,7 @@ function joinPlayer(
   displayName: string,
   classId: HeroClassId,
   content: GameContent,
+  profile: PlayerProfile | undefined,
   events: GameEvent[],
 ): string | null {
   const existing = state.players[id];
@@ -239,9 +242,17 @@ function joinPlayer(
     return "room_full";
   }
 
+  if (state.status !== "lobby" && state.status !== "running") {
+    return "match_already_started";
+  }
+
   const definition = content.classes[classId];
-  state.players[id] = createPlayer(id, displayName, definition.id, content);
+  const player = createPlayer(id, displayName, definition.id, content, profile);
+  state.players[id] = player;
   events.push({ type: "player_joined", playerId: id });
+  if (state.status === "running") {
+    seedLateJoinProgression(state, player, content, events);
+  }
   return null;
 }
 
@@ -250,6 +261,7 @@ function createPlayer(
   displayName: string,
   classId: HeroClassId,
   content: GameContent,
+  profile?: PlayerProfile,
 ): PlayerState {
   const definition = content.classes[classId];
   const cooldowns: Record<string, number> = {};
@@ -276,6 +288,16 @@ function createPlayer(
     rescueDurationMultiplier: 1,
     waveShieldBonus: 0,
     activeSynergyIds: [],
+    unlockedContentIds:
+      profile === undefined
+        ? []
+        : [
+            ...new Set(
+              profile.unlockedContentIds.filter((contentId) =>
+                Object.values(content.unlocks).some((unlock) => unlock.contentId === contentId),
+              ),
+            ),
+          ],
     level: 1,
     experience: 0,
     nextLevelExperience: LEVEL_BASE_EXPERIENCE,
@@ -297,8 +319,77 @@ function createPlayer(
       enemiesDefeated: 0,
     },
   };
+  applyPlayerProfile(player, profile, content);
   rebuildEquipmentStats(player, content);
   return player;
+}
+
+function applyPlayerProfile(
+  player: PlayerState,
+  profile: PlayerProfile | undefined,
+  content: GameContent,
+): void {
+  if (profile === undefined) {
+    return;
+  }
+  if (profile.automation !== null) {
+    player.automation = { ...profile.automation };
+  }
+  if (profile.loadout === null) {
+    return;
+  }
+
+  const loadout = profile.loadout;
+  const nextLoadout = { ...player.loadout };
+  if (validateLoadout(player.classId, loadout.activeSkillIds, content) === null) {
+    nextLoadout.activeSkillIds = [...loadout.activeSkillIds];
+  }
+  if (
+    validateEquipment(
+      player.classId,
+      loadout.weaponId,
+      loadout.armorId,
+      loadout.accessoryId,
+      content,
+    ) === null
+  ) {
+    nextLoadout.weaponId = loadout.weaponId;
+    nextLoadout.armorId = loadout.armorId;
+    nextLoadout.accessoryId = loadout.accessoryId;
+  }
+  player.loadout = nextLoadout;
+}
+
+function seedLateJoinProgression(
+  state: GameState,
+  player: PlayerState,
+  content: GameContent,
+  events: GameEvent[],
+): void {
+  const existingLevels = Object.values(state.players)
+    .filter((candidate) => candidate.id !== player.id)
+    .map((candidate) => candidate.level);
+  if (existingLevels.length === 0) {
+    return;
+  }
+
+  const averageLevel =
+    existingLevels.reduce((total, level) => total + level, 0) / existingLevels.length;
+  const startingLevel = Math.max(1, Math.round(averageLevel));
+  while (player.level < startingLevel) {
+    player.level += 1;
+    player.nextLevelExperience = LEVEL_BASE_EXPERIENCE + player.level * 15;
+    const upgrade = selectAutomaticUpgrade(state, player, content);
+    if (upgrade === null) {
+      continue;
+    }
+    applyUpgrade(player, upgrade);
+    player.upgrades.push(upgrade.id);
+    events.push({ type: "upgrade_selected", playerId: player.id, upgradeId: upgrade.id });
+  }
+  player.experience = 0;
+  player.hp = player.maxHp;
+  player.shield = 0;
 }
 
 function createStarterLoadout(classId: HeroClassId, content: GameContent): PlayerLoadout {
@@ -472,16 +563,9 @@ function setLoadout(
   if (player === undefined) {
     return "player_not_found";
   }
-  if (activeSkillIds.length === 0 || activeSkillIds.length > 2) {
-    return "loadout_invalid";
-  }
-  const uniqueSkillIds = new Set(activeSkillIds);
-  if (uniqueSkillIds.size !== activeSkillIds.length) {
-    return "loadout_invalid";
-  }
-  const classSkillIds = content.classes[player.classId].skillIds;
-  if (activeSkillIds.some((skillId) => !classSkillIds.includes(skillId))) {
-    return "skill_not_available";
+  const rejection = validateLoadout(player.classId, activeSkillIds, content);
+  if (rejection !== null) {
+    return rejection;
   }
   player.loadout = {
     ...player.loadout,
@@ -508,6 +592,54 @@ function setEquipment(
     return "player_not_found";
   }
 
+  const rejection = validateEquipment(player.classId, weaponId, armorId, accessoryId, content);
+  if (rejection !== null) {
+    return rejection;
+  }
+
+  player.loadout = {
+    ...player.loadout,
+    weaponId,
+    armorId,
+    accessoryId,
+  };
+  rebuildEquipmentStats(player, content);
+  events.push({
+    type: "equipment_changed",
+    playerId: player.id,
+    weaponId,
+    armorId,
+    accessoryId,
+    synergyIds: [...player.activeSynergyIds],
+  });
+  return null;
+}
+
+function validateLoadout(
+  classId: HeroClassId,
+  activeSkillIds: readonly string[],
+  content: GameContent,
+): string | null {
+  if (activeSkillIds.length === 0 || activeSkillIds.length > 2) {
+    return "loadout_invalid";
+  }
+  const uniqueSkillIds = new Set(activeSkillIds);
+  if (uniqueSkillIds.size !== activeSkillIds.length) {
+    return "loadout_invalid";
+  }
+  const classSkillIds = content.classes[classId].skillIds;
+  return activeSkillIds.some((skillId) => !classSkillIds.includes(skillId))
+    ? "skill_not_available"
+    : null;
+}
+
+function validateEquipment(
+  classId: HeroClassId,
+  weaponId: string | null,
+  armorId: string | null,
+  accessoryId: string | null,
+  content: GameContent,
+): string | null {
   const selections = [
     { id: weaponId, slot: "weapon" as const },
     { id: armorId, slot: "armor" as const },
@@ -526,29 +658,13 @@ function setEquipment(
     if (equipment === undefined) {
       return "equipment_not_found";
     }
-    if (!content.classes[player.classId].equipmentIds.includes(selection.id)) {
+    if (!content.classes[classId].equipmentIds.includes(selection.id)) {
       return "equipment_not_available";
     }
     if (equipment.slot !== selection.slot) {
       return "equipment_slot_mismatch";
     }
   }
-
-  player.loadout = {
-    ...player.loadout,
-    weaponId,
-    armorId,
-    accessoryId,
-  };
-  rebuildEquipmentStats(player, content);
-  events.push({
-    type: "equipment_changed",
-    playerId: player.id,
-    weaponId,
-    armorId,
-    accessoryId,
-    synergyIds: [...player.activeSynergyIds],
-  });
   return null;
 }
 
@@ -1676,13 +1792,45 @@ function endMatch(
     return;
   }
   state.status = outcome;
+  const unlocks = createMatchUnlocks(state, outcome, content);
   state.result = {
     outcome,
     durationMs: state.elapsedMs,
     completedAtTick: state.tick,
     rewards: createMatchRewards(state, outcome, content),
+    unlocks,
   };
+  for (const player of Object.values(state.players)) {
+    for (const unlockId of unlocks[player.id] ?? []) {
+      const unlock = content.unlocks[unlockId];
+      if (unlock !== undefined && !player.unlockedContentIds.includes(unlock.contentId)) {
+        player.unlockedContentIds.push(unlock.contentId);
+      }
+    }
+  }
   events.push({ type: "match_ended", result: state.result });
+}
+
+function createMatchUnlocks(
+  state: GameState,
+  outcome: MatchResult["outcome"],
+  content: GameContent,
+): Readonly<Record<string, readonly string[]>> {
+  const definitions = Object.values(content.unlocks).sort((left, right) =>
+    left.id.localeCompare(right.id),
+  );
+  const unlocks: Record<string, readonly string[]> = {};
+  for (const player of Object.values(state.players)) {
+    unlocks[player.id] = definitions
+      .filter(
+        (unlock) =>
+          unlock.condition.type === "match_outcome" &&
+          unlock.condition.outcome === outcome &&
+          !player.unlockedContentIds.includes(unlock.contentId),
+      )
+      .map((unlock) => unlock.id);
+  }
+  return unlocks;
 }
 
 function createMatchRewards(
@@ -1744,6 +1892,7 @@ export function cloneState(source: GameState): GameState {
       },
       automation: { ...player.automation },
       activeSynergyIds: [...player.activeSynergyIds],
+      unlockedContentIds: [...player.unlockedContentIds],
       skillCooldowns: { ...player.skillCooldowns },
       upgrades: [...player.upgrades],
       pendingUpgradeChoices: [...player.pendingUpgradeChoices],
@@ -1773,6 +1922,12 @@ export function cloneState(source: GameState): GameState {
               Object.entries(source.result.rewards).map(([playerId, reward]) => [
                 playerId,
                 { ...reward },
+              ]),
+            ),
+            unlocks: Object.fromEntries(
+              Object.entries(source.result.unlocks).map(([playerId, unlockIds]) => [
+                playerId,
+                [...unlockIds],
               ]),
             ),
           },

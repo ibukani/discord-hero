@@ -111,4 +111,27 @@ describe("default content", () => {
       ]),
     );
   });
+
+  it("validates unlock identity and condition references", () => {
+    const invalid: GameContent = {
+      ...DEFAULT_CONTENT,
+      unlocks: {
+        ...DEFAULT_CONTENT.unlocks,
+        "unlock.invalid": {
+          id: "unlock.other",
+          unlockType: "",
+          contentId: "",
+          condition: { type: "account_level", minimum: 0 },
+        },
+      },
+    };
+
+    expect(validateGameContent(invalid)).toEqual(
+      expect.arrayContaining([
+        "unlock key unlock.invalid does not match id unlock.other",
+        "unlock unlock.invalid must have a type and content ID",
+        "unlock unlock.invalid has an invalid account level condition",
+      ]),
+    );
+  });
 });

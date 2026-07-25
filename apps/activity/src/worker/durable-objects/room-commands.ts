@@ -1,5 +1,16 @@
-import { actionId, matchId, playerId, type GameCommand } from "@discord-hero/game-core";
-import type { ClientMessage, HeroClassIdDto } from "@discord-hero/protocol";
+import {
+  actionId,
+  matchId,
+  playerId,
+  type GameCommand,
+  type PlayerProfile,
+} from "@discord-hero/game-core";
+import type {
+  AutomationPolicyDto,
+  ClientMessage,
+  HeroClassIdDto,
+  LoadoutDto,
+} from "@discord-hero/protocol";
 import type { ConnectionAttachment } from "./room-connections.js";
 
 export type MutatingClientMessage = Exclude<
@@ -10,20 +21,23 @@ export type MutatingClientMessage = Exclude<
 export function toGameCommand(
   message: MutatingClientMessage,
   attachment: ConnectionAttachment,
-  persistedClassId?: HeroClassIdDto,
+  persistedProfile?: PersistedProfile,
 ): GameCommand {
   const actorId = playerId(attachment.playerId);
   const commandActionId = actionId(message.actionId);
 
   switch (message.type) {
-    case "hello":
+    case "hello": {
+      const profile = toGameProfile(persistedProfile);
       return {
         type: "join_player",
         actionId: commandActionId,
         playerId: actorId,
         displayName: attachment.displayName,
-        classId: persistedClassId ?? message.classId,
+        classId: persistedProfile?.classId ?? message.classId,
+        ...(profile === undefined ? {} : { profile }),
       };
+    }
     case "set_ready":
       return {
         type: "set_ready",
@@ -116,4 +130,30 @@ export function toGameCommand(
         targetPlayerId: playerId(message.targetPlayerId),
       };
   }
+}
+
+export interface PersistedProfile {
+  readonly classId: HeroClassIdDto;
+  readonly loadout: LoadoutDto | null;
+  readonly automation: AutomationPolicyDto | null;
+  readonly unlockedContentIds: readonly string[];
+}
+
+function toGameProfile(profile: PersistedProfile | undefined): PlayerProfile | undefined {
+  if (profile === undefined) {
+    return undefined;
+  }
+  return {
+    loadout:
+      profile.loadout === null
+        ? null
+        : {
+            activeSkillIds: [...profile.loadout.activeSkillIds],
+            weaponId: profile.loadout.weaponId,
+            armorId: profile.loadout.armorId,
+            accessoryId: profile.loadout.accessoryId,
+          },
+    automation: profile.automation === null ? null : { ...profile.automation },
+    unlockedContentIds: [...profile.unlockedContentIds],
+  };
 }

@@ -1,0 +1,35 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "unlock-settlement-foundation",
+  "title": "報酬連動アンロックの永続基盤",
+  "objective": "コンテンツ定義から報酬結果に応じたアンロックを決定し、D1へ冪等に保存して結果画面へ通知する基盤を追加する。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "アンロック条件と報酬結果が決定論的に評価され、旧結果の復元時は空のアンロックへ安全にフォールバックする",
+      "verification": "npm run test --workspace @discord-hero/game-core && npm run test --workspace @discord-hero/protocol"
+    },
+    {
+      "id": "AC-2",
+      "description": "Queueの結果処理が試合結果・経験値・通貨・アンロックを同一バッチで更新し、再配信や同一アンロックを二重登録しない",
+      "verification": "npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-3",
+      "description": "結果画面に今回初めて得たアンロックを表示し、クライアントが未検証のアンロックを生成できない",
+      "verification": "npm run typecheck && npm run build"
+    },
+    {
+      "id": "AC-4",
+      "description": "コンテンツ整合性検証、マイグレーション、仕様ドキュメントが更新される",
+      "verification": "npm run check:architecture && npm run assets:validate"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": ["apps/**", "packages/**", "docs/**", "scripts/**", ".ai/**", "README.md"],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "必要に応じて変更理由、互換性、運用上の注意を記載する。"
+}

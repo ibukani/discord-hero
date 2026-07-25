@@ -148,6 +148,27 @@ export function validateGameContent(content: GameContent): readonly string[] {
     }
   }
 
+  for (const [unlockId, unlock] of Object.entries(content.unlocks)) {
+    if (unlock.id !== unlockId) {
+      issues.push(`unlock key ${unlockId} does not match id ${unlock.id}`);
+    }
+    if (unlock.unlockType.length === 0 || unlock.contentId.length === 0) {
+      issues.push(`unlock ${unlockId} must have a type and content ID`);
+    }
+    switch (unlock.condition.type) {
+      case "match_outcome":
+        if (!(["victory", "return", "defeat"] as const).includes(unlock.condition.outcome)) {
+          issues.push(`unlock ${unlockId} has an invalid match outcome`);
+        }
+        break;
+      case "account_level":
+        if (!Number.isInteger(unlock.condition.minimum) || unlock.condition.minimum < 1) {
+          issues.push(`unlock ${unlockId} has an invalid account level condition`);
+        }
+        break;
+    }
+  }
+
   for (const outcome of ["victory", "return", "defeat"] as const) {
     if (content.rewardPolicy.currencyBaseByOutcome[outcome] < 0) {
       issues.push(`reward policy ${outcome} has a negative currency base`);

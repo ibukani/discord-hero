@@ -10,7 +10,9 @@ import {
 } from "./common.js";
 import {
   ActiveDecisionSchema,
+  AccountProgressSchema,
   AutomationPolicySchema,
+  DEFAULT_ACCOUNT_PROGRESS,
   DecisionSummarySchema,
   GameSnapshotSchema,
   MatchResultSchema,
@@ -187,6 +189,7 @@ export const ServerMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("welcome"),
     playerId: SafeIdSchema,
     roomId: RoomIdSchema,
+    accountProgress: AccountProgressSchema.default(DEFAULT_ACCOUNT_PROGRESS),
     snapshot: GameSnapshotSchema,
   }),
   ServerEnvelopeSchema.extend({

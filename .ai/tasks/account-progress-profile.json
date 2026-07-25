@@ -1,0 +1,35 @@
+{
+  "$schema": "../task.schema.json",
+  "schemaVersion": 1,
+  "id": "account-progress-profile",
+  "title": "本人向けアカウント進行プロフィール",
+  "objective": "D1に保存されたアカウントレベル・経験値・通貨・アンロックを、共有ゲームスナップショットへ漏らさず接続中の本人へ返し、ロビーで永続進行として表示する基盤を追加する。",
+  "risk": "medium",
+  "constraints": ["AGENTS.mdの規約を維持する", "明示的な型安全性の回避を追加しない"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "description": "D1の進行行をunknownとして検証し、壊れた値は安全な初期値へ戻せる",
+      "verification": "npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-2",
+      "description": "welcomeだけが接続中プレイヤー本人の進行プロフィールを返し、旧welcomeは初期値へフォールバックできる",
+      "verification": "npm run test --workspace @discord-hero/protocol && npm run test --workspace @discord-hero/activity"
+    },
+    {
+      "id": "AC-3",
+      "description": "クライアントが受信した本人プロフィールをロビーのレベル・経験値・通貨・アンロック表示へ反映し、他プレイヤーの進行を共有スナップショットへ追加しない",
+      "verification": "npm run typecheck && npm run build"
+    },
+    {
+      "id": "AC-4",
+      "description": "仕様と運用文書が本人専用プロフィールの境界と互換性を説明する",
+      "verification": "npm run check:architecture && npm run check:task-contract"
+    }
+  ],
+  "requiredChecks": ["typecheck", "test", "build"],
+  "allowedPaths": ["apps/**", "packages/**", "docs/**", "scripts/**", ".ai/**", "README.md"],
+  "forbiddenPaths": [".github/workflows/deploy-production.yml"],
+  "notes": "必要に応じて変更理由、互換性、運用上の注意を記載する。"
+}

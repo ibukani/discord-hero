@@ -217,6 +217,20 @@ export const DEFAULT_CONTENT: GameContent = {
     experiencePerWave: 20,
     experiencePerEnemyDefeated: 5,
   },
+  unlocks: {
+    "achievement.workbench-victory": {
+      id: "achievement.workbench-victory",
+      unlockType: "achievement",
+      contentId: "achievement.workbench-victory",
+      condition: { type: "match_outcome", outcome: "victory" },
+    },
+    "title.workbench-survivor": {
+      id: "title.workbench-survivor",
+      unlockType: "title",
+      contentId: "title.workbench-survivor",
+      condition: { type: "account_level", minimum: 2 },
+    },
+  },
   stage: {
     id: "workbench-outskirts",
     waves: [

@@ -101,6 +101,20 @@ const content: GameContent = {
     experiencePerWave: 15,
     experiencePerEnemyDefeated: 3,
   },
+  unlocks: {
+    "achievement.test-victory": {
+      id: "achievement.test-victory",
+      unlockType: "achievement",
+      contentId: "achievement.test-victory",
+      condition: { type: "match_outcome", outcome: "victory" },
+    },
+    "title.test-level-two": {
+      id: "title.test-level-two",
+      unlockType: "title",
+      contentId: "title.test-level-two",
+      condition: { type: "account_level", minimum: 2 },
+    },
+  },
   stage: {
     id: "test-stage",
     waves: [{ enemyDefinitionIds: ["target"] }],
@@ -346,6 +360,100 @@ describe("game engine", () => {
     expect(Object.keys(overflow.state.players)).toHaveLength(4);
   });
 
+  it("scales a running late joiner from the party level and applies a validated profile", () => {
+    const first = createStartedGame(equipmentContent);
+    const firstPlayer = first.players["player-1"];
+    if (firstPlayer === undefined) {
+      throw new Error("Expected the initial player");
+    }
+    firstPlayer.level = 4;
+    firstPlayer.automation = {
+      growth: "survival",
+      progress: "balanced",
+      retreat: "standard",
+      rescue: "standard",
+    };
+    const profile = {
+      loadout: {
+        activeSkillIds: ["guardian.hit"],
+        weaponId: "weapon.test",
+        armorId: "armor.test",
+        accessoryId: "accessory.test",
+      },
+      automation: {
+        growth: "offense" as const,
+        progress: "reward" as const,
+        retreat: "last_stand" as const,
+        rescue: "priority" as const,
+      },
+      unlockedContentIds: [],
+    };
+
+    const second = applyCommand(
+      first,
+      {
+        type: "join_player",
+        actionId: actionId("late-join"),
+        playerId: playerId("player-2"),
+        displayName: "Late Player",
+        classId: "guardian",
+        profile,
+      },
+      equipmentContent,
+    );
+
+    expect(second.accepted).toBe(true);
+    const latePlayer = second.state.players["player-2"];
+    expect(latePlayer?.level).toBe(4);
+    expect(latePlayer?.loadout).toEqual(profile.loadout);
+    expect(latePlayer?.automation).toEqual(profile.automation);
+    expect(latePlayer?.upgrades).toHaveLength(3);
+    expect(second.events).toContainEqual({ type: "player_joined", playerId: "player-2" });
+    expect(second.events.filter((event) => event.type === "upgrade_selected")).toHaveLength(3);
+
+    const replay = applyCommand(
+      cloneState(first),
+      {
+        type: "join_player",
+        actionId: actionId("late-join"),
+        playerId: playerId("player-2"),
+        displayName: "Late Player",
+        classId: "guardian",
+        profile,
+      },
+      equipmentContent,
+    );
+    expect(replay).toEqual(second);
+
+    const partialProfile = applyCommand(
+      second.state,
+      {
+        type: "join_player",
+        actionId: actionId("late-join-partial-profile"),
+        playerId: playerId("player-3"),
+        displayName: "Partial Profile",
+        classId: "guardian",
+        profile: {
+          loadout: {
+            activeSkillIds: ["mage.hit"],
+            weaponId: "weapon.test",
+            armorId: "armor.test",
+            accessoryId: "accessory.test",
+          },
+          automation: null,
+          unlockedContentIds: [],
+        },
+      },
+      equipmentContent,
+    );
+    expect(partialProfile.state.players["player-3"]?.loadout).toEqual({
+      activeSkillIds: ["guardian.hit"],
+      weaponId: "weapon.test",
+      armorId: "armor.test",
+      accessoryId: "accessory.test",
+    });
+  });
+
   it("keeps simulation health and result values within valid bounds", () => {
     let state = createStartedGame();
     for (let index = 0; index < 1_000 && state.status === "running"; index += 1) {
@@ -365,6 +473,8 @@ describe("game engine", () => {
     expect(state.result?.outcome).toBe("victory");
     expect(state.result?.durationMs).toBe(state.elapsedMs);
     expect(state.result?.rewards["player-1"]).toEqual({ currency: 113, experience: 98 });
+    expect(state.result?.unlocks["player-1"]).toEqual(["achievement.test-victory"]);
+    expect(state.players["player-1"]?.unlockedContentIds).toEqual(["achievement.test-victory"]);
   });
 
   it("bounds the remembered action identifier window", () => {

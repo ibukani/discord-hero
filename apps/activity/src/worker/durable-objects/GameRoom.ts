@@ -8,14 +8,15 @@ import {
   matchId,
   playerId,
   stepGame,
-  type GameCommand,
   type GameContent,
   type GameEvent,
   type GameState,
 } from "@discord-hero/game-core";
 import {
   ClientMessageSchema,
+  DEFAULT_ACCOUNT_PROGRESS,
   PROTOCOL_VERSION,
+  type AccountProgress,
   type ClientMessage,
   type ErrorCode,
   type ServerMessage,
@@ -332,63 +333,28 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
     ) {
       await this.repository.prepareCompletedMatch(game, this.matchStartedAt, this.roomId);
     }
-    const initialResult = applyCommand(
+    const result = applyCommand(
       game,
-      toGameCommand(message, attachment, persistedPreferences?.classId),
+      toGameCommand(
+        message,
+        attachment,
+        message.type === "hello" ? (persistedPreferences ?? undefined) : undefined,
+      ),
       this.requireContent(),
     );
-    if (!initialResult.accepted) {
-      this.rejectCommand(socket, message.actionId, initialResult.errorCode ?? "invalid_command");
+    if (!result.accepted) {
+      this.rejectCommand(socket, message.actionId, result.errorCode ?? "invalid_command");
       return;
-    }
-
-    let resultState = initialResult.state;
-    const resultEvents: GameEvent[] = [...initialResult.events];
-    if (message.type === "hello" && !playerWasPresent && persistedPreferences !== null) {
-      const profileCommands: GameCommand[] = [];
-      if (persistedPreferences.loadout?.activeSkillIds.length) {
-        profileCommands.push({
-          type: "set_loadout",
-          actionId: actionId(`${message.actionId}:profile-loadout`),
-          playerId: playerId(attachment.playerId),
-          activeSkillIds: persistedPreferences.loadout.activeSkillIds,
-        });
-      }
-      if (persistedPreferences.loadout !== null) {
-        profileCommands.push({
-          type: "set_equipment",
-          actionId: actionId(`${message.actionId}:profile-equipment`),
-          playerId: playerId(attachment.playerId),
-          weaponId: persistedPreferences.loadout.weaponId,
-          armorId: persistedPreferences.loadout.armorId,
-          accessoryId: persistedPreferences.loadout.accessoryId,
-        });
-      }
-      if (persistedPreferences.automation !== null) {
-        profileCommands.push({
-          type: "set_automation_policy",
-          actionId: actionId(`${message.actionId}:profile-automation`),
-          playerId: playerId(attachment.playerId),
-          policy: persistedPreferences.automation,
-        });
-      }
-      for (const profileCommand of profileCommands) {
-        const profileResult = applyCommand(resultState, profileCommand, this.requireContent());
-        if (profileResult.accepted) {
-          resultState = profileResult.state;
-          resultEvents.push(...profileResult.events);
-        }
-      }
     }
 
     const shouldPersistPreferences =
       (message.type === "hello" && !playerWasPresent) ||
-      (message.type === "select_class" && resultState.status === "lobby") ||
-      (message.type === "set_loadout" && resultState.status === "lobby") ||
-      (message.type === "set_equipment" && resultState.status === "lobby") ||
-      (message.type === "set_automation_policy" && resultState.status === "lobby");
+      (message.type === "select_class" && result.state.status === "lobby") ||
+      (message.type === "set_loadout" && result.state.status === "lobby") ||
+      (message.type === "set_equipment" && result.state.status === "lobby") ||
+      (message.type === "set_automation_policy" && result.state.status === "lobby");
     if (shouldPersistPreferences) {
-      const player = resultState.players[attachment.playerId];
+      const player = result.state.players[attachment.playerId];
       if (player !== undefined) {
         try {
           await savePlayerPreferences(
@@ -398,6 +364,7 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
               classId: player.classId,
               loadout: { ...player.loadout },
               automation: { ...player.automation },
+              unlockedContentIds: [...player.unlockedContentIds],
             },
             new Date().toISOString(),
           );
@@ -412,13 +379,6 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
         }
       }
     }
-
-    const result = {
-      accepted: true as const,
-      state: resultState,
-      events: resultEvents,
-      errorCode: null,
-    };
 
     const stateChanged = result.state !== game;
     this.game = result.state;
@@ -435,7 +395,11 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
     await this.handlePostMutation(result.events, message.type !== "cast_skill");
 
     if (message.type === "hello") {
-      this.sendWelcome(socket, attachment.playerId);
+      this.sendWelcome(
+        socket,
+        attachment.playerId,
+        persistedPreferences?.accountProgress ?? DEFAULT_ACCOUNT_PROGRESS,
+      );
     }
     this.broadcastEvents(result.events);
     if (stateChanged) {
@@ -656,7 +620,11 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
     }
   }
 
-  private sendWelcome(socket: WebSocket, currentPlayerId: string): void {
+  private sendWelcome(
+    socket: WebSocket,
+    currentPlayerId: string,
+    accountProgress: AccountProgress,
+  ): void {
     const game = this.game;
     if (game === null || this.roomId === null) {
       return;
@@ -668,6 +636,7 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
       serverTick: game.tick,
       playerId: currentPlayerId,
       roomId: this.roomId,
+      accountProgress,
       snapshot: toClientSnapshot(game),
     });
   }

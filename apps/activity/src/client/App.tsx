@@ -1,6 +1,7 @@
 import { DEFAULT_CONTENT } from "@discord-hero/content";
 import { HERO_CLASS_IDS, type EquipmentSlot } from "@discord-hero/game-core";
 import type {
+  AccountProgress,
   DomainEventDto,
   GameSnapshot,
   GrowthPolicyDto,
@@ -50,6 +51,11 @@ const EQUIPMENT_LABELS: Readonly<Record<string, string>> = {
   "armor.ranger-cloak": "レンジャークローク",
   "accessory.rescue-charm": "救助のお守り",
   "accessory.arcane-signet": "秘術の印章",
+};
+
+const UNLOCK_LABELS: Readonly<Record<string, string>> = {
+  "achievement.workbench-victory": "ワークベンチ初勝利",
+  "title.workbench-survivor": "ワークベンチの生還者",
 };
 
 const EQUIPMENT_SLOT_LABELS: Readonly<Record<EquipmentSlot, string>> = {
@@ -229,6 +235,7 @@ export function App(): JSX.Element {
       <LobbyView
         snapshot={state.snapshot}
         currentPlayer={currentPlayer}
+        accountProgress={state.accountProgress}
         onInvite={() => void platformRef.current?.invite()}
         onOpenSettings={openSettings}
         onReady={() => socketRef.current?.setReady(!(currentPlayer?.ready ?? false))}
@@ -331,6 +338,7 @@ function ConnectionView({ roomId, status, onRetry }: ConnectionViewProps): JSX.E
 interface LobbyViewProps {
   readonly snapshot: GameSnapshot;
   readonly currentPlayer: PlayerSnapshot | null;
+  readonly accountProgress: AccountProgress | null;
   readonly onInvite: () => void;
   readonly onOpenSettings: () => void;
   readonly onReady: () => void;
@@ -340,6 +348,7 @@ interface LobbyViewProps {
 function LobbyView({
   snapshot,
   currentPlayer,
+  accountProgress,
   onInvite,
   onOpenSettings,
   onReady,
@@ -413,6 +422,7 @@ function LobbyView({
                   <span>{roleTags(currentPlayer.classId).join(" · ")}</span>
                 </div>
               </div>
+              <AccountProgressCard accountProgress={accountProgress} />
               <div className="policy-summary">
                 <div>
                   <span>成長</span>
@@ -473,6 +483,68 @@ function LobbyView({
           {!allReady ? <p className="form-hint">全員の準備が整うと出発できます。</p> : null}
         </section>
       </div>
+    </section>
+  );
+}
+
+function AccountProgressCard({
+  accountProgress,
+}: {
+  readonly accountProgress: AccountProgress | null;
+}): JSX.Element {
+  if (accountProgress === null) {
+    return <p className="muted account-progress-loading">永続進行を同期しています。</p>;
+  }
+
+  const previousLevelExperience = Math.max(0, (accountProgress.accountLevel - 1) * 100);
+  const levelSpan = Math.max(1, accountProgress.nextLevelExperience - previousLevelExperience);
+  const levelProgress = Math.min(
+    100,
+    Math.max(0, ((accountProgress.experience - previousLevelExperience) / levelSpan) * 100),
+  );
+  const visibleUnlocks = accountProgress.unlockedContentIds.slice(0, 3);
+  const remainingUnlockCount = Math.max(
+    0,
+    accountProgress.unlockedContentIds.length - visibleUnlocks.length,
+  );
+
+  return (
+    <section className="account-progress-card" aria-label="永続プレイヤー進行">
+      <div className="account-progress-heading">
+        <div>
+          <span className="eyebrow">ACCOUNT PROFILE</span>
+          <strong>永続進行</strong>
+        </div>
+        <span className="account-level-badge">Lv.{accountProgress.accountLevel}</span>
+      </div>
+      <div className="account-progress-meter">
+        <div className="account-progress-meter-label">
+          <span>アカウント経験値</span>
+          <strong>
+            {accountProgress.experience} / {accountProgress.nextLevelExperience} XP
+          </strong>
+        </div>
+        <div className="account-progress-track" aria-hidden="true">
+          <i style={{ width: `${levelProgress}%` }} />
+        </div>
+      </div>
+      <div className="account-progress-footer">
+        <span>所持ゴールド</span>
+        <strong>{accountProgress.gameCurrency} G</strong>
+        <span>アンロック</span>
+        <strong>{accountProgress.unlockedContentIds.length}件</strong>
+      </div>
+      {visibleUnlocks.length > 0 ? (
+        <div className="account-unlock-row">
+          <span>最近の解禁</span>
+          <div>
+            {visibleUnlocks.map((unlockId) => (
+              <small key={unlockId}>{unlockLabel(unlockId)}</small>
+            ))}
+            {remainingUnlockCount > 0 ? <small>+{remainingUnlockCount}件</small> : null}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1032,6 +1104,10 @@ function ResultView({ snapshot, currentPlayerId, onRetry, onLobby }: ResultViewP
     currentPlayerId === null || snapshot.result === null
       ? null
       : (snapshot.result.rewards[currentPlayerId] ?? null);
+  const unlockedIds =
+    currentPlayerId === null || snapshot.result === null
+      ? []
+      : (snapshot.result.unlocks[currentPlayerId] ?? []);
   return (
     <section className="result-screen panel">
       <div
@@ -1081,6 +1157,21 @@ function ResultView({ snapshot, currentPlayerId, onRetry, onLobby }: ResultViewP
           <strong>{reward === null ? "—" : `+${reward.experience} XP`}</strong>
         </div>
       </section>
+      {unlockedIds.length > 0 ? (
+        <section className="result-unlock-panel">
+          <div className="unlock-heading">
+            <span>NEW UNLOCK</span>
+            <strong>新規アンロック</strong>
+          </div>
+          <div className="unlock-list">
+            {unlockedIds.map((unlockId) => (
+              <span className="unlock-chip" key={unlockId}>
+                ✦ {unlockLabel(unlockId)}
+              </span>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <section className="result-party">
         <h3>パーティー戦績</h3>
         {Object.values(snapshot.players).map((player) => (
@@ -1107,6 +1198,10 @@ function ResultView({ snapshot, currentPlayerId, onRetry, onLobby }: ResultViewP
       </div>
     </section>
   );
+}
+
+function unlockLabel(unlockId: string): string {
+  return UNLOCK_LABELS[unlockId] ?? unlockId;
 }
 
 function PartyAssessment({

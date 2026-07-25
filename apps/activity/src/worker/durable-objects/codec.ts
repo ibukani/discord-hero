@@ -97,6 +97,12 @@ export function toClientSnapshot(state: GameState): GameSnapshot {
                 { ...reward },
               ]),
             ),
+            unlocks: Object.fromEntries(
+              Object.entries(state.result.unlocks).map(([playerId, unlockIds]) => [
+                playerId,
+                [...unlockIds],
+              ]),
+            ),
           },
   };
 }
@@ -115,6 +121,7 @@ export function toStoredGameState(state: GameState): StoredGameState {
       },
       automation: { ...player.automation },
       activeSynergyIds: [...player.activeSynergyIds],
+      unlockedContentIds: [...player.unlockedContentIds],
       skillCooldowns: { ...player.skillCooldowns },
       upgrades: [...player.upgrades],
       pendingUpgradeChoices: [...player.pendingUpgradeChoices],
@@ -154,6 +161,12 @@ export function toStoredGameState(state: GameState): StoredGameState {
                 { ...reward },
               ]),
             ),
+            unlocks: Object.fromEntries(
+              Object.entries(state.result.unlocks).map(([playerId, unlockIds]) => [
+                playerId,
+                [...unlockIds],
+              ]),
+            ),
           },
   };
 }
@@ -173,6 +186,7 @@ export function fromStoredGameState(stored: StoredGameState): GameState {
       },
       automation: { ...player.automation },
       activeSynergyIds: [...player.activeSynergyIds],
+      unlockedContentIds: [...player.unlockedContentIds],
       skillCooldowns: { ...player.skillCooldowns },
       upgrades: [...player.upgrades],
       pendingUpgradeChoices: [...player.pendingUpgradeChoices],
@@ -202,6 +216,12 @@ export function fromStoredGameState(stored: StoredGameState): GameState {
               Object.entries(stored.result.rewards).map(([playerId, reward]) => [
                 playerId,
                 { ...reward },
+              ]),
+            ),
+            unlocks: Object.fromEntries(
+              Object.entries(stored.result.unlocks).map(([playerId, unlockIds]) => [
+                playerId,
+                [...unlockIds],
               ]),
             ),
           },
@@ -340,6 +360,12 @@ export function toDomainEvent(event: GameEvent): DomainEventDto {
             Object.entries(event.result.rewards).map(([playerId, reward]) => [
               playerId,
               { ...reward },
+            ]),
+          ),
+          unlocks: Object.fromEntries(
+            Object.entries(event.result.unlocks).map(([playerId, unlockIds]) => [
+              playerId,
+              [...unlockIds],
             ]),
           ),
         },

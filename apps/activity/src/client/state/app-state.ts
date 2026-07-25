@@ -1,4 +1,9 @@
-import type { DomainEventDto, GameSnapshot, ServerMessage } from "@discord-hero/protocol";
+import type {
+  AccountProgress,
+  DomainEventDto,
+  GameSnapshot,
+  ServerMessage,
+} from "@discord-hero/protocol";
 import type { ConnectionStatus } from "../network/RoomSocket.js";
 import type { PlatformSession } from "../platform/types.js";
 
@@ -6,6 +11,7 @@ export interface AppState {
   readonly connectionStatus: ConnectionStatus;
   readonly session: PlatformSession | null;
   readonly playerId: string | null;
+  readonly accountProgress: AccountProgress | null;
   readonly snapshot: GameSnapshot | null;
   readonly recentEvents: readonly DomainEventDto[];
   readonly error: string | null;
@@ -22,6 +28,7 @@ export const INITIAL_APP_STATE: AppState = {
   connectionStatus: "idle",
   session: null,
   playerId: null,
+  accountProgress: null,
   snapshot: null,
   recentEvents: [],
   error: null,
@@ -61,6 +68,7 @@ function reduceServerMessage(state: AppState, message: ServerMessage): AppState 
       return {
         ...state,
         playerId: message.playerId,
+        accountProgress: message.accountProgress,
         snapshot: message.snapshot,
         error: null,
       };

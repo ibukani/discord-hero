@@ -16,6 +16,7 @@ const EVENT: MatchFinishedEvent = {
     durationMs: 600_000,
     completedAtTick: 6_000,
     rewards: { "player-one": { currency: 250, experience: 125 } },
+    unlocks: { "player-one": ["achievement.workbench-victory", "unknown.unlock"] },
   },
   players: [
     {
@@ -81,6 +82,16 @@ describe("match result persistence", () => {
       .first<{ rewards_json: string }>();
     expect(storedResult?.rewards_json).toBe(JSON.stringify(EVENT.result.rewards));
     expect(storedPlayer?.rewards_json).toBe(JSON.stringify(EVENT.result.rewards["player-one"]));
+
+    const unlocks = await env.DB.prepare(
+      "SELECT unlock_type, content_id FROM unlocks WHERE player_id = ?1 ORDER BY content_id",
+    )
+      .bind("player-one")
+      .all<{ unlock_type: string; content_id: string }>();
+    expect(unlocks.results).toEqual([
+      { unlock_type: "achievement", content_id: "achievement.workbench-victory" },
+      { unlock_type: "title", content_id: "title.workbench-survivor" },
+    ]);
   });
 
   it("persists a return outcome with its partial reward", async () => {
@@ -93,6 +104,7 @@ describe("match result persistence", () => {
         durationMs: 120_000,
         completedAtTick: 1_200,
         rewards: { "player-one": { currency: 60, experience: 30 } },
+        unlocks: {},
       },
     };
 

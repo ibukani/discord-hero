@@ -117,6 +117,43 @@ describe("protocol schemas", () => {
     ).toBe("command_ack");
   });
 
+  it("defaults the private account progress on an older welcome message", () => {
+    const parsed = ServerMessageSchema.parse({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "welcome",
+      stateRevision: 0,
+      serverTick: 0,
+      playerId: "player-1",
+      roomId: "room-1",
+      snapshot: {
+        schemaVersion: 1,
+        matchId: "match-1",
+        seed: "seed-1",
+        rulesetVersion: "1.0.0",
+        contentVersion: "2026.07.1",
+        status: "lobby",
+        tick: 0,
+        elapsedMs: 0,
+        waveIndex: 0,
+        players: {},
+        enemies: {},
+        result: null,
+      },
+    });
+
+    expect(parsed.type).toBe("welcome");
+    if (parsed.type !== "welcome") {
+      throw new Error("Expected welcome message");
+    }
+    expect(parsed.accountProgress).toEqual({
+      accountLevel: 1,
+      experience: 0,
+      nextLevelExperience: 100,
+      gameCurrency: 0,
+      unlockedContentIds: [],
+    });
+  });
+
   it("accepts automatic decision and return events", () => {
     const parsed = ServerMessageSchema.parse({
       protocolVersion: PROTOCOL_VERSION,
@@ -193,6 +230,16 @@ describe("protocol schemas", () => {
         durationMs: 1_000,
         completedAtTick: 10,
       }).rewards,
+    ).toEqual({});
+  });
+
+  it("defaults unlocks when reading a result created before unlock settlement", () => {
+    expect(
+      MatchResultSchema.parse({
+        outcome: "return",
+        durationMs: 1_000,
+        completedAtTick: 10,
+      }).unlocks,
     ).toEqual({});
   });
 

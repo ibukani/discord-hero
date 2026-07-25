@@ -32,6 +32,22 @@ export const PlayerStatsSchema = z.object({
   enemiesDefeated: z.number().int().nonnegative(),
 });
 
+export const AccountProgressSchema = z.object({
+  accountLevel: z.number().int().positive(),
+  experience: z.number().int().nonnegative(),
+  nextLevelExperience: z.number().int().positive(),
+  gameCurrency: z.number().int().nonnegative(),
+  unlockedContentIds: z.array(SafeIdSchema).max(128),
+});
+
+export const DEFAULT_ACCOUNT_PROGRESS = {
+  accountLevel: 1,
+  experience: 0,
+  nextLevelExperience: 100,
+  gameCurrency: 0,
+  unlockedContentIds: [],
+};
+
 export const DecisionSummarySchema = z.object({
   kind: ExpeditionDecisionKindSchema,
   decisionId: SafeIdSchema,
@@ -120,11 +136,14 @@ export const MatchRewardSchema = z.object({
   experience: z.number().int().nonnegative(),
 });
 
+export const MatchUnlocksSchema = z.record(SafeIdSchema, z.array(SafeIdSchema).max(32)).default({});
+
 export const MatchResultSchema = z.object({
   outcome: z.enum(["victory", "defeat", "return"]),
   durationMs: z.number().int().nonnegative(),
   completedAtTick: z.number().int().nonnegative(),
   rewards: z.record(SafeIdSchema, MatchRewardSchema).default({}),
+  unlocks: MatchUnlocksSchema,
 });
 
 export const GameSnapshotSchema = z.object({
@@ -147,6 +166,7 @@ export const GameSnapshotSchema = z.object({
 
 export type PlayerSnapshot = z.infer<typeof PlayerSnapshotSchema>;
 export type EnemySnapshot = z.infer<typeof EnemySnapshotSchema>;
+export type AccountProgress = z.infer<typeof AccountProgressSchema>;
 export type LoadoutDto = z.infer<typeof LoadoutSchema>;
 export type MatchResultDto = z.infer<typeof MatchResultSchema>;
 export type GameSnapshot = z.infer<typeof GameSnapshotSchema>;

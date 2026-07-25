@@ -23,7 +23,10 @@ import {
   issueSessionToken,
   verifySessionToken,
 } from "../src/worker/auth/tokens.js";
-import { upsertPlayer } from "../src/worker/persistence/player-repository.js";
+import {
+  savePlayerPreferences,
+  upsertPlayer,
+} from "../src/worker/persistence/player-repository.js";
 import { type GameRoom } from "../src/worker/durable-objects/GameRoom.js";
 import {
   COMPLETION_OUTBOX_STORAGE_KEY,
@@ -244,6 +247,20 @@ describe("GameRoom integration", () => {
     });
     firstSocket.close(1000, "profile saved");
 
+    await env.DB.prepare(
+      `UPDATE player_progress
+       SET account_level = ?1, experience = ?2, game_currency = ?3
+       WHERE player_id = ?4`,
+    )
+      .bind(3, 245, 321, player)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO unlocks (player_id, unlock_type, content_id, unlocked_at)
+       VALUES (?1, ?2, ?3, ?4)`,
+    )
+      .bind(player, "achievement", "achievement.workbench-victory", "2026-07-25T00:00:02.000Z")
+      .run();
+
     const secondRoomId = "integration-room-profile-two";
     const secondStub = roomStub(secondRoomId);
     const secondSocket = requireWebSocket(
@@ -261,6 +278,13 @@ describe("GameRoom integration", () => {
     if (secondWelcome.type !== "welcome") {
       throw new Error("Expected restored profile welcome");
     }
+    expect(secondWelcome.accountProgress).toEqual({
+      accountLevel: 3,
+      experience: 245,
+      nextLevelExperience: 300,
+      gameCurrency: 321,
+      unlockedContentIds: ["achievement.workbench-victory"],
+    });
     const restoredPlayer = secondWelcome.snapshot.players[player];
     expect(restoredPlayer?.classId).toBe("mage");
     expect(restoredPlayer?.loadout).toEqual({
@@ -284,6 +308,7 @@ describe("GameRoom integration", () => {
     )
       .bind("unknown-class", "{broken", "[broken", player)
       .run();
+    await env.DB.prepare("DELETE FROM player_progress WHERE player_id = ?1").bind(player).run();
 
     const thirdRoomId = "integration-room-profile-corrupt";
     const thirdStub = roomStub(thirdRoomId);
@@ -314,7 +339,96 @@ describe("GameRoom integration", () => {
       retreat: "standard",
       rescue: "standard",
     });
+    expect(thirdWelcome.accountProgress).toEqual({
+      accountLevel: 1,
+      experience: 0,
+      nextLevelExperience: 100,
+      gameCurrency: 0,
+      unlockedContentIds: ["achievement.workbench-victory"],
+    });
     thirdSocket.close(1000, "profile fallback verified");
+  });
+
+  it("accepts a profile-backed player while a match is running", async () => {
+    const player = "midjoin-player";
+    const roomId = "integration-room-midjoin";
+    await upsertPlayer(env.DB, {
+      id: player,
+      discordUserId: null,
+      displayName: "Midjoin Player",
+      initialClassId: "mage",
+      now: "2026-07-25T00:00:00.000Z",
+    });
+    await savePlayerPreferences(
+      env.DB,
+      player,
+      {
+        classId: "mage",
+        loadout: {
+          activeSkillIds: ["mage.arc_burst", "mage.chain_lightning"],
+          weaponId: "weapon.arcane-focus",
+          armorId: "armor.ranger-cloak",
+          accessoryId: "accessory.arcane-signet",
+        },
+        automation: {
+          growth: "skill",
+          progress: "reward",
+          retreat: "last_stand",
+          rescue: "priority",
+        },
+        unlockedContentIds: [],
+      },
+      "2026-07-25T00:00:01.000Z",
+    );
+
+    const stub = roomStub(roomId);
+    const hostSocket = requireWebSocket(
+      await connect(stub, roomId, await createRoomTicket(roomId, "midjoin-host", "Host")),
+    );
+    hostSocket.accept();
+    const hostWelcomePromise = nextMessage(hostSocket, (message) => message.type === "welcome");
+    hostSocket.send(JSON.stringify(helloMessage("midjoin-host-hello", null)));
+    await hostWelcomePromise;
+    await sendAndWaitForAck(hostSocket, {
+      protocolVersion: PROTOCOL_VERSION,
+      type: "set_ready",
+      actionId: "midjoin-host-ready",
+      ready: true,
+    });
+    await sendAndWaitForAck(hostSocket, {
+      protocolVersion: PROTOCOL_VERSION,
+      type: "start_match",
+      actionId: "midjoin-host-start",
+    });
+
+    const playerSocket = requireWebSocket(
+      await connect(stub, roomId, await createRoomTicket(roomId, player, "Midjoin Player")),
+    );
+    playerSocket.accept();
+    const playerWelcomePromise = nextMessage(playerSocket, (message) => message.type === "welcome");
+    playerSocket.send(JSON.stringify(helloMessage("midjoin-player-hello", null)));
+    const playerWelcome = await playerWelcomePromise;
+    expect(playerWelcome.type).toBe("welcome");
+    if (playerWelcome.type !== "welcome") {
+      throw new Error("Expected mid-match welcome");
+    }
+    expect(playerWelcome.snapshot.status).toBe("running");
+    expect(playerWelcome.snapshot.players[player]?.classId).toBe("mage");
+    expect(playerWelcome.snapshot.players[player]?.loadout).toEqual({
+      activeSkillIds: ["mage.arc_burst", "mage.chain_lightning"],
+      weaponId: "weapon.arcane-focus",
+      armorId: "armor.ranger-cloak",
+      accessoryId: "accessory.arcane-signet",
+    });
+    expect(playerWelcome.snapshot.players[player]?.automation).toEqual({
+      growth: "skill",
+      progress: "reward",
+      retreat: "last_stand",
+      rescue: "priority",
+    });
+
+    hostSocket.close(1000, "mid-match host complete");
+    playerSocket.close(1000, "mid-match profile complete");
   });
 
   it("uses a Durable Object alarm for a pending decision after hibernation", async () => {
@@ -579,7 +693,12 @@ describe("GameRoom integration", () => {
         seed: "outbox-seed",
         startedAt: "2026-07-25T00:00:00.000Z",
         endedAt: "2026-07-25T00:01:00.000Z",
-        result: { outcome: "victory", durationMs: 60_000, completedAtTick: 600 },
+        result: {
+          outcome: "victory",
+          durationMs: 60_000,
+          completedAtTick: 600,
+          unlocks: {},
+        },
         players: [],
       });
       await state.storage.setAlarm(Date.now() + 60_000);
