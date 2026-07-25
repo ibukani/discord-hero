@@ -52,7 +52,7 @@
     "assets:pack": "node scripts/assets/create-pack.mjs"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.1",
+    "@eslint/js": "10.0.1",
     "@types/node": "26.1.1",
     "eslint": "9.39.1",
     "eslint-plugin-react-hooks": "7.1.1",
