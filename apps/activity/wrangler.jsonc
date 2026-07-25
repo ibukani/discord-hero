@@ -84,7 +84,7 @@
       "vars": {
         "APP_ENV": "staging",
         "ALLOW_LOCAL_AUTH": "false",
-        "DISCORD_CLIENT_ID": "REPLACE_WITH_STAGING_DISCORD_CLIENT_ID",
+        "DISCORD_CLIENT_ID": "1530495701992341554",
       },
       "durable_objects": {
         "bindings": [
@@ -98,7 +98,7 @@
         {
           "binding": "DB",
           "database_name": "discord-hero-staging",
-          "database_id": "REPLACE_WITH_STAGING_D1_DATABASE_ID",
+          "database_id": "da9b7863-1c23-4209-a1d9-f6db6ef20dc5",
           "migrations_dir": "../../migrations",
         },
       ],
@@ -138,7 +138,7 @@
       "vars": {
         "APP_ENV": "production",
         "ALLOW_LOCAL_AUTH": "false",
-        "DISCORD_CLIENT_ID": "REPLACE_WITH_PRODUCTION_DISCORD_CLIENT_ID",
+        "DISCORD_CLIENT_ID": "1530495701992341554",
       },
       "durable_objects": {
         "bindings": [
@@ -152,7 +152,7 @@
         {
           "binding": "DB",
           "database_name": "discord-hero-production",
-          "database_id": "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID",
+          "database_id": "534e9e9c-3a9d-4566-93a2-824e9941d3b1",
           "migrations_dir": "../../migrations",
         },
       ],

@@ -99,7 +99,7 @@ export class GameRoom extends DurableObject<RuntimeEnv> {
       return new Response("Invalid room path", { status: 400 });
     }
 
-    const ticket = ticketFromProtocols(request.headers.get("sec-websocket-protocol"));
+    const ticket = ticketFromRequest(request);
     if (ticket === null) {
       return new Response("Room ticket required", { status: 401 });
     }
@@ -722,4 +722,13 @@ function ticketFromProtocols(header: string | null): string | null {
   }
   const authProtocol = protocols.find((protocol) => protocol.startsWith(AUTH_PROTOCOL_PREFIX));
   return authProtocol?.slice(AUTH_PROTOCOL_PREFIX.length) ?? null;
+}
+
+function ticketFromRequest(request: Request): string | null {
+  const url = new URL(request.url);
+  const queryTicket = url.searchParams.get("ticket");
+  if (queryTicket !== null && queryTicket.length > 0) {
+    return queryTicket;
+  }
+  return ticketFromProtocols(request.headers.get("sec-websocket-protocol"));
 }

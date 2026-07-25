@@ -3,6 +3,7 @@ import { DisplayNameSchema, HeroClassIdSchema, RoomIdSchema, SafeIdSchema } from
 
 export const DiscordTokenExchangeRequestSchema = z.object({
   code: z.string().min(1).max(512),
+  redirectUri: z.string().min(1).max(512).optional(),
 });
 
 export const LocalAuthRequestSchema = z.object({

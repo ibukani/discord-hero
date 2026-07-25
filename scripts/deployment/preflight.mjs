@@ -10,13 +10,27 @@ if (environment !== "staging" && environment !== "production") {
 
 const repositoryRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const configPath = resolve(repositoryRoot, "apps/activity/wrangler.jsonc");
-const missingCredentials = ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"].filter(
-  (name) => process.env[name]?.trim().length === 0 || process.env[name] === undefined,
-);
+const hasAccount = process.env.CLOUDFLARE_ACCOUNT_ID?.trim().length > 0;
+const hasApiToken = process.env.CLOUDFLARE_API_TOKEN?.trim().length > 0;
+const missingCredentials = [];
+if (!hasApiToken && !hasAccount) {
+  const isOauthLoggedIn =
+    spawnSync("npx", ["wrangler", "whoami"], {
+      shell: process.platform === "win32",
+      encoding: "utf8",
+    }).status === 0;
+  if (!isOauthLoggedIn) {
+    missingCredentials.push("CLOUDFLARE_API_TOKEN or wrangler login is required for deployment");
+  }
+}
 const config = await readWranglerConfig(configPath);
 const violations = [
   ...missingCredentials.map((name) => `${name} is required for deployment`),
-  ...validateDeploymentConfig(config, environment, process.env.VITE_DISCORD_CLIENT_ID ?? ""),
+  ...validateDeploymentConfig(
+    config,
+    environment,
+    process.env.VITE_DISCORD_CLIENT_ID ?? config.env?.[environment]?.vars?.DISCORD_CLIENT_ID ?? "",
+  ),
 ];
 
 if (violations.length === 0) {
@@ -59,7 +73,10 @@ function listRemoteSecrets(targetEnvironment, targetConfigPath) {
     throw new Error(`Unable to list remote Worker secrets for ${targetEnvironment}`);
   }
   try {
-    return JSON.parse(result.stdout ?? "");
+    const stdout = (result.stdout ?? "").trim();
+    const jsonIndex = stdout.indexOf("[");
+    const jsonString = jsonIndex >= 0 ? stdout.slice(jsonIndex) : stdout;
+    return JSON.parse(jsonString);
   } catch (error) {
     throw new Error("Wrangler secret list returned invalid JSON", { cause: error });
   }

@@ -39,7 +39,7 @@ export function withSecurityHeaders(response: Response): Response {
   headers.set("permissions-policy", "camera=(), geolocation=(), payment=()");
   headers.set(
     "content-security-policy",
-    "default-src 'self'; img-src 'self' data: https://cdn.discordapp.com; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' wss: https://discord.com https://*.discord.com; frame-ancestors https://discord.com https://*.discord.com",
+    "default-src 'self'; img-src 'self' data: https://cdn.discordapp.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://cash-f.squarecdn.com https://static.discord.com https://static-edge.discord.com; script-src 'self' 'unsafe-inline'; connect-src 'self' wss: https://discord.com https://*.discord.com https://*.workers.dev; frame-ancestors https://discord.com https://*.discord.com https://*.discordsays.com",
   );
   return new Response(response.body, {
     status: response.status,

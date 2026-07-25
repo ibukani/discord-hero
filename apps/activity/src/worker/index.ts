@@ -8,7 +8,7 @@ import {
   RoomTicketResponseSchema,
 } from "@discord-hero/protocol";
 import { z } from "zod";
-import { exchangeDiscordCode } from "./auth/discord.js";
+import { DiscordAuthError, exchangeDiscordCode } from "./auth/discord.js";
 import {
   issueRoomTicket,
   issueSessionToken,
@@ -81,6 +81,9 @@ export default {
       if (error instanceof HttpBodyError || error instanceof z.ZodError) {
         return errorResponse(400, "bad_request", "Invalid request", id);
       }
+      if (error instanceof DiscordAuthError) {
+        return errorResponse(401, "unauthorized", error.message, id);
+      }
       return errorResponse(500, "internal_error", "Internal server error", id);
     }
   },
@@ -139,8 +142,9 @@ async function handleDiscordAuth(request: Request, env: RuntimeEnv): Promise<Res
   const input = DiscordTokenExchangeRequestSchema.parse(await readJsonBody(request));
   const identity = await exchangeDiscordCode(
     input.code,
-    env.DISCORD_CLIENT_ID,
-    env.DISCORD_CLIENT_SECRET,
+    env.DISCORD_CLIENT_ID.trim(),
+    env.DISCORD_CLIENT_SECRET.trim(),
+    input.redirectUri,
   );
   const now = new Date();
   await upsertPlayer(env.DB, {

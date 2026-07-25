@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_LOCAL_ROOM_ID?: string;
   readonly VITE_LOCAL_USER_ID?: string;
   readonly VITE_LOCAL_DISPLAY_NAME?: string;
+  readonly VITE_WORKER_HOST?: string;
 }
 
 interface ImportMeta {

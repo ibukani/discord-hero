@@ -79,9 +79,10 @@ export class RoomSocket {
         return;
       }
 
+      const host = window.location.host;
       const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const socketUrl = `${scheme}//${window.location.host}/api/rooms/${encodeURIComponent(this.session.roomId)}/socket`;
-      const socket = new WebSocket(socketUrl, ["discord-hero.v1", `auth.${ticket.ticket}`]);
+      const socketUrl = `${scheme}//${host}/api/rooms/${encodeURIComponent(this.session.roomId)}/socket?ticket=${encodeURIComponent(ticket.ticket)}`;
+      const socket = new WebSocket(socketUrl, ["discord-hero.v1"]);
       this.socket = socket;
 
       socket.addEventListener("open", () => {
@@ -104,7 +105,7 @@ export class RoomSocket {
       });
 
       socket.addEventListener("error", () => {
-        this.callbacks.onError("WebSocket接続でエラーが発生しました。");
+        this.callbacks.onError(`WebSocket接続エラー (${host})`);
       });
 
       socket.addEventListener("close", () => {
@@ -203,5 +204,25 @@ export class RoomSocket {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "不明なエラー";
+  if (typeof error === "string") {
+    return error;
+  }
+  if (typeof error === "object" && error !== null) {
+    const candidate = error as { message?: unknown; name?: unknown };
+    if (typeof candidate.message === "string" && candidate.message.length > 0) {
+      return candidate.message;
+    }
+    if (typeof candidate.name === "string" && candidate.name.length > 0) {
+      return candidate.name;
+    }
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "[object]";
+    }
+  }
+  if (typeof error === "number" || typeof error === "boolean") {
+    return String(error);
+  }
+  return "不明なエラー";
 }

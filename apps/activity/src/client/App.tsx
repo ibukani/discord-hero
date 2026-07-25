@@ -313,5 +313,25 @@ function eventLabel(event: (typeof INITIAL_APP_STATE.recentEvents)[number]): str
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "初期化に失敗しました";
+  if (typeof error === "string") {
+    return error;
+  }
+  if (typeof error === "object" && error !== null) {
+    const candidate = error as { message?: unknown; name?: unknown; code?: unknown };
+    if (typeof candidate.message === "string" && candidate.message.length > 0) {
+      return candidate.message;
+    }
+    if (typeof candidate.name === "string" && candidate.name.length > 0) {
+      return candidate.name;
+    }
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "[object]"; 
+    }
+  }
+  if (typeof error === "number" || typeof error === "boolean") {
+    return String(error);
+  }
+  return "初期化に失敗しました";
 }

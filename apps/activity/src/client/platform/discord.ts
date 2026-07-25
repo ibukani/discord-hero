@@ -16,12 +16,14 @@ export class DiscordPlatformBridge implements PlatformBridge {
       client_id: this.clientId,
       response_type: "code",
       state: "",
-      prompt: "none",
       scope: ["identify"],
     });
     const auth = await postJson(
       "/api/auth/discord/exchange",
-      { code: authorization.code },
+      {
+        code: authorization.code,
+        redirectUri: window.location.origin,
+      },
       AuthResponseSchema,
     );
     if (auth.discordAccessToken === null) {
